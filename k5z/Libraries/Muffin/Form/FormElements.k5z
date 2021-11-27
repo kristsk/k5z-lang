@@ -1,0 +1,456 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library FormElements;
+
+
+
+import Output from "Libraries/Muffin";
+import Form from "Libraries/Muffin/Form";
+import Meatloaf as ML from "Libraries";
+import WebApplication as WA from "SystemLibraries";
+
+
+
+function Debug(val p1, val p2, opt suffix = "") {
+
+    MaybeDebug("muffin.formelements" .. suffix, p1, p2);
+}
+
+
+
+function GenericInputElement(ref form, val element_name, ref variable, opt validators = [], opt filters = []) {
+
+    return [
+        .new => @( Form::BaseElement() ),
+        .bind => @(ref self) {
+
+            self.name = element_name;
+
+            self.initial_value = variable;
+
+            self.validators = validators;
+            self.filters = filters;
+
+            self.input_name = GenerateUniqueId("fe_");
+
+            self.current_value = self.initial_value;
+
+            self.fetch = @(val data) {
+
+                self.current_value = data[self.input_name] ?? self.initial_value;
+            };
+
+            self.submit_action = @{
+
+                if(self.current_value != self.initial_value) {
+
+                    form.changed_element_names[] = element_name;
+                }
+
+                variable = self.current_value;
+            };
+
+            self.reset_action = @{
+
+                self.current_value = self.initial_value;
+                self.errors = [];
+            };
+
+            self.update_action = @{
+
+                if (variable != self.initial_value) {
+
+                    self.current_value = variable;
+                }
+            };
+        }
+    ];
+}
+
+
+
+function TextInput(ref variable, opt label = FALSE, opt validators = [], opt filters = []) {
+
+    return @(ref form, val element_name) {
+
+        return [
+            .new => @( ::GenericInputElement(form, element_name, variable, validators, filters) ),
+            .bind => @(ref self) {
+
+                self.type = "text_input";
+
+                self.output = @(val params) {
+
+                    params.id = params.id ?? GenerateUniqueId("id_");
+
+                    return [
+                        .type => self.type,
+                        .data => [
+                            .label => @label(),
+                            .name => self.input_name,
+                            .errors => self.errors,
+                            .value => self.current_value
+                        ],
+                        .params => params
+                    ];
+                };
+            }
+        ];
+    };
+}
+
+
+
+function PasswordInput(ref variable, opt label = FALSE, opt validators = [], opt filters = []) {
+
+    return @(ref form, val element_name) {
+
+        return [
+            .new => @( ::GenericInputElement(form, element_name, variable, validators, filters) ),
+            .bind => @(ref self) {
+
+                self.type = "password_input";
+
+                self.output = @(val params) {
+
+                    params.id = params.id ?? GenerateUniqueId("id_");
+
+                    return [
+                        .type => self.type,
+                        .data => [
+                            .label => @label(),
+                            .name => self.input_name,
+                            .errors => self.errors,
+                            .value => self.current_value
+                        ],
+                        .params => params
+                    ];
+                };
+            }
+        ];
+    };
+}
+
+
+
+function TextOutput(val text_source, val label ) {
+
+    return @(ref form, val element_name) {
+
+        return [
+            .new => @( Form::BaseElement() ),
+            .bind => @(ref self) {
+
+                self.type = "text_output";
+
+                self.output = @(val params) {
+
+                    params.id = params.id ?? GenerateUniqueId("id_");
+
+                    return [
+                        .type => self.type,
+                        .data => [
+                            .label => @label(),
+                            .value => @text_source()
+                        ],
+                        .params => params
+                    ];
+                };
+            }
+        ];
+    };
+}
+
+
+
+function Textarea(ref variable, val label, opt validators = [], opt filters = []) {
+
+    return @(ref form, val element_name) {
+
+        return [
+            .new => @( ::GenericInputElement(form, element_name, variable, validators, filters) ),
+            .bind => @(ref self) {
+
+                self.type = "textarea";
+
+                self.output = @(val params) {
+
+                    params.id = params.id ?? GenerateUniqueId("id_");
+
+                    return [
+                        .type => self.type,
+                        .data => [
+                            .label => @label(),
+                            .name => self.input_name,
+                            .errors => self.errors,
+                            .value => self.current_value
+                        ],
+                        .params => params
+                    ];
+                };
+            }
+        ];
+    };
+}
+
+
+
+function Checkbox(ref variable, val label, opt checked_value = TRUE, opt unchecked_value = FALSE) {
+
+    return @(ref form, val element_name) {
+
+        return [
+            .new => @( ::GenericInputElement(form, element_name, variable) ),
+            .bind => @(ref self) {
+
+                self.type = "checkbox";
+
+                self.output = @(val params) {
+
+                    params.id = params.id ?? GenerateUniqueId("id_");
+
+                    return [
+                        .type => self.type,
+                        .data => [
+                            .label => @label(),
+                            .name => self.input_name,
+                            .errors => self.errors,
+                            .checked => self.current_value == checked_value
+                        ],
+                        .params => params
+                    ];
+                };
+
+                self.fetch = @(val data) {
+
+                    self.current_value = IsSet(data[self.input_name]) ? checked_value : unchecked_value;
+                };
+            }
+        ];
+    };
+}
+
+
+
+function SimpleSelect(ref variable, val label, val options_source, opt default_value = FALSE) {
+
+    return @(ref form, val element_name) {
+
+        return [
+            .new => @( ::GenericInputElement(form, element_name, variable) ),
+            .bind => @(ref self) {
+
+                self.type = "select";
+
+                self.output = @(val params) {
+
+                    params.id = params.id ?? GenerateUniqueId("id_");
+
+                    options = [];
+                    foreach(@options_source() as value => option_label) {
+
+                        option = [.value => value, .label => option_label];
+                        option.selected = self.current_value == value;
+                        options[] = option;
+                    }
+
+                    return [
+                        .type => self.type,
+                        .data => [
+                            .label => @label(),
+                            .name => self.input_name,
+                            .errors => self.errors,
+                            .options => options
+                        ],
+                        .params => params
+                    ];
+                };
+
+                self.fetch = @(val data) {
+
+                    self.current_value = data[self.input_name] ?? default_value;
+                };
+            }
+        ];
+    };
+}
+
+
+
+function SubmitButton(val title, val action) {
+
+    return @(ref form, val element_name) {
+
+        return [
+            .new => @( Form::BaseElement() ),
+            .bind => @(ref self) {
+
+                self.type = "submit_button";
+                self.name = element_name;
+
+                self.output = @(val params) {
+
+                    params.id = params.id ?? GenerateUniqueId("id_");
+
+                    return [
+                        .type => self.type,
+                        .data => [
+                            .title => @title(),
+                            .action_url => @( ::GetFormSubmitUrl(form, action) ),
+                            .errors => []
+                        ],
+                        .params => params
+                    ];
+                };
+            }
+        ];
+    };
+}
+
+
+
+function GetFormSubmitUrl(ref form, val action) {
+
+    return Output::ActionUrl(@{
+
+        if(@form.submit_action()) {
+
+            result = @action(form);
+        }
+        else {
+
+            result = FALSE;
+        }
+
+        return result;
+    });
+}
+
+
+
+function ResetButton(val title, opt action = FALSE) {
+
+    return @(ref form, val element_name) {
+
+        return [
+            .new => @( Form::BaseElement() ),
+            .bind => @(ref self) {
+
+                self.type = "reset_button";
+                self.name = element_name;
+
+                reset_action = @{
+
+                    @form.reset_action();
+                    return @action(self);
+                };
+
+                self.output = @(val params) {
+
+                    params.id = params.id ?? GenerateUniqueId("id_");
+
+                    return [
+                        .type => self.type,
+                        .data => [
+                            .title => @title(),
+                            .action_url => @( ::GetFormActionUrl(form, reset_action) ),
+                            .errors => []
+                        ],
+                        .params => params
+                    ];
+                };
+            }
+        ];
+    };
+}
+
+
+
+function ActionButton(val title, val action) {
+
+    return @(ref form, val element_name) {
+
+        return [
+            .new => @( Form::BaseElement() ),
+            .bind => @(ref self) {
+
+                self.type = "form_button";
+                self.name = element_name;
+
+                self.output = @(val params) {
+
+                    params.id = params.id ?? GenerateUniqueId("id_");
+
+                    return [
+                        .type => self.type,
+                        .data => [
+                            .title => @title(),
+                            .action_url => @( ::GetFormActionUrl(form, action) ),
+                            .errors => []
+                        ],
+                        .params => params
+                    ];
+                };
+            }
+        ];
+    };
+}
+
+
+
+function GetFormActionUrl(ref form, val action) {
+
+    return Output::ActionUrl(@{
+
+        @form.fetch();
+        @form.filter();
+
+        @action(form);
+
+        @form.update_action();
+    });
+}
+
+
+
+function MakeFormElementHelperThread(val thread_closure) {
+
+    return Form::MakeFormHelperThread(@{
+
+        while (TRUE) {
+
+            get_data = WA::GetRequestData("get");
+
+            @thread_closure(get_data);
+        }
+    });
+}
+
+
+
+function CustomElement(val output_data_source) {
+
+    return @(ref form, val element_name) {
+
+        return [
+            .new => @( Form::BaseElement() ),
+            .bind => @(ref self) {
+
+                self.type = "custom";
+                self.name = element_name;
+
+                self.output = @(val params) {
+
+                    params.id = params.id ?? GenerateUniqueId("id_");
+
+                    return [
+                        .type => self.type,
+                        .data => @output_data_source(self),
+                        .params => params
+                    ];
+                };
+            }
+        ];
+    };
+}

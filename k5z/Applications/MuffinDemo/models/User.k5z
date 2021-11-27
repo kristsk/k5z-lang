@@ -1,0 +1,134 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library User;
+
+
+
+import Crumpet as C, CrumpetFieldProperties as CFP from "Libraries/Crumpet";
+
+import Form as F, FormElements as FE, FormElementUtils as FEU from "Libraries/Muffin/Form";
+
+
+
+function Model(val pdo) {
+
+    return C::MakeModel(
+        "users",
+        [
+            .id => [
+                CFP::String,
+                CFP::UserPK(GenerateUuidV4)
+            ],
+            .name => [
+                CFP::String
+            ],
+            .login => [
+                CFP::String
+            ],
+            .created_at => [
+                CFP::CreateDateTime
+            ],
+            .type => [
+                CFP::String
+            ]
+        ],
+        pdo
+    );
+}
+
+
+
+function CreateForm(ref user, val submit_action) {
+
+    return F::MakeForm(
+        [.login => FE::TextInput(
+            label: "Login",
+            variable: user.login,
+            validators: [FEU::Required, FEU::Email]
+        ) ]
+        +
+        ::DefaultFormElements(user, submit_action, "Create")
+    );
+}
+
+
+
+function UpdateForm(ref user, val submit_action) {
+
+    return F::MakeForm(
+        [.login => FE::TextOutput(
+            label: "Login",
+            text_source: user.login
+        ) ]
+        +
+        ::DefaultFormElements(user, submit_action, "Update")
+    );
+}
+
+
+
+function DefaultFormElements(ref user, val submit_action, val submit_title) {
+
+    return [
+        .name => FE::TextInput(
+            label: "Name",
+            variable: user.name,
+            validators: [FEU::Required]
+        ),
+        .type => FE::SimpleSelect(
+            label: "Type",
+            variable: user.type,
+            options_source: ::TypesMap
+        ),
+        .buttons_fieldset => F::Fieldset([
+            .oh_submit_button => FE::SubmitButton(submit_title, submit_action),
+            .eh_reset_button => FE::ResetButton("Reset")
+        ])
+    ];
+}
+
+
+
+function TypesMap() {
+
+    return [
+        "one" => "One",
+        "two" => "Two",
+        "three" => "Three"
+    ];
+}
+
+
+
+function GetTypeTitle(val type_value) {
+
+    types = ::TypesMap();
+
+    return types[type_value] ?? "*UNKNOWN*";
+}
+
+
+
+function GetNameById(val user_id ) {
+
+    name = "-";
+
+    if(user_id) {
+
+        user = C::SelectOneByPk("user", [.id => user_id]);
+
+        if(user != FALSE) {
+
+            name = user.name;
+        }
+    }
+
+    return name;
+}
+
+
+function FindByLogin(val login) {
+
+    return C::SelectOne("user", [.login => login]);
+}

@@ -1,0 +1,8 @@
+<?php
+/* @var $variables */
+/* @var $data */
+extract($variables); ?>
+<?php foreach (isset($data['errors']) ? $data['errors'] : [] as $error): ?>
+    <span class="help-block"><?= $error ?></span>
+<?php endforeach ?>
+

@@ -1,0 +1,2 @@
+BASEDIR=$(dirname $0)
+java -classpath $BASEDIR/build:$BASEDIR/lib/class lv.kristsk.k5z.Librarian $1 $2 $3 $4

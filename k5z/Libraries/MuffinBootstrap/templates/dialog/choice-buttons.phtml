@@ -1,0 +1,16 @@
+<?php extract($variables); ?>
+
+<div class="alert alert-success" role="alert">
+    <p><?= $message ?></p>
+    <hr>
+    <p class="mb-0 text-center">
+        <?php foreach ($buttons as $button): ?>
+            <button
+                    type="button"
+                    class="btn btn-primary"
+                    data-muffin-action-button
+                    data-incremental
+                    data-url="<?= $button['url'] ?>"><?= $button['title'] ?></button>
+        <?php endforeach ?>
+    </p>
+</div>

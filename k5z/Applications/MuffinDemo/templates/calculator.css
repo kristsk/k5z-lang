@@ -1,0 +1,42 @@
+div.calculator-frame {
+    width: 200pt;
+    border: 2pt solid red;
+    border-radius: 10pt;
+    padding: 10pt;
+    margin: 10pt;
+
+}
+
+div.calculator-frame h1 {
+    font-size: 12pt;
+}
+
+div.calculator div.display {
+    background-color: darkblue;
+    color: yellow;
+    font-weight: bolder;
+    padding: 10pt;
+    margin-bottom: 5pt;
+    border-radius: 5pt;
+    text-align: right;
+}
+
+div.calculator div.buttons button {
+    margin: 1pt;
+    width: 17.25%;
+    padding: 2pt;
+}
+
+div.calculator div.buttons div.control button {
+
+    width: auto;
+}
+
+div.digits, div.operations, div.control {
+    clear: both;
+}
+
+div.control-panel {
+
+    margin-top: 10pt;
+}

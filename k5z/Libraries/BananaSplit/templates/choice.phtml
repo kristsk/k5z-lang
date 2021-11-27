@@ -1,0 +1,10 @@
+<?= $question ?>
+<hr/>
+
+<ul>
+<?php foreach($options as $text => $url): ?>
+<li>
+	<a href="<?= $url ?>"><?= $text ?></a>
+</li>
+<?php endforeach ?>
+</ul>

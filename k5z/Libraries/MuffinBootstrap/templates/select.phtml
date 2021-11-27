@@ -1,0 +1,12 @@
+<?php
+/* @var $variables */
+/* @var $data */
+/* @var $params */
+extract($variables); ?>
+<select class="form-control" id="<?= $params['id'] ?>" name="<?= $data['name'] ?>">
+    <?php foreach ($data['options'] as $option): ?>
+        <option <?= $option['selected'] ? 'selected' : '' ?>
+                value="<?= $option['value'] ?>"
+        ><?= $option['label'] ?></option>
+    <?php endforeach ?>
+</select>

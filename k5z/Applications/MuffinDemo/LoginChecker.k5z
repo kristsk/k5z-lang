@@ -1,0 +1,65 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library LoginChecker;
+
+
+
+import CurrentMuffin, SomeMuffin, Output from "Libraries/Muffin";
+import Form, FormElements, FormElementUtils from "Libraries/Muffin/Form";
+import MuffinBootstrapUI as BSUI from "Libraries/MuffinBootstrap";
+
+
+
+include phtml "templates/login.phtml" as function LoginCheckerTemplate(val variables);
+
+
+
+function MakeLoginChecker(val success_action) {
+
+    login = "desa";
+    password = "";
+
+    login_form = Form::MakeForm([
+        .login => FormElements::TextInput(
+            label: "Login",
+            variable: login,
+            validators: [FormElementUtils::Required, FormElementUtils::MinLength(3)],
+            filters: [FormElementUtils::ToUpperCase]
+        ),
+        .password => FormElements::PasswordInput(
+            label: "Password",
+            variable: password,
+            validators: [FormElementUtils::Required, FormElementUtils::MinLength(3)]
+        ),
+        .buttons_fieldset => Form::Fieldset([
+            .oh_submit_button => FormElements::SubmitButton("DO ETH!", @{
+
+                if(password == "zupa") {
+
+                    BSUI::OkDialog(login .. " / " .. password);
+
+                    @success_action(login);
+                }
+                else {
+
+                    BSUI::OkDialog("NOPE");
+                }
+            } ),
+            .eh_reset_button => FormElements::ResetButton("Reset", @{ Debug("RESETING!"); login = "desaa"; password = ""; }),
+            .ah_dummy_button => FormElements::ActionButton("WAT", @{ password = "zupa"; login = "zyzy"; })
+        ])
+    ]);
+
+    return SomeMuffin::MakeWith(
+        content_source: @{
+
+            form_renderer = BSUI::MakeFormRenderer();
+
+            Output::Template(::LoginCheckerTemplate, [
+                .form => Form::Form(login_form, form_renderer)
+            ]);
+        },
+        frame_source: SomeMuffin::MakeDefaultFrameSource("login-frame")
+    );
+}

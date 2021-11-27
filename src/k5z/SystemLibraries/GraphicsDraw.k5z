@@ -1,0 +1,11 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library GraphicsDraw;
+
+include php "GraphicsDraw.php" with {
+    function ImageCreateTruecolor(val width, val height) as "\\imagecreatetruecolor";
+    function ImageFill(val image, val x, val y, val color) as "\\imagefill";
+    function ImageLine(val image, val x1, val y1, val x2, val y2, val color) as "\\imageline";
+    function ImagePng(val image, opt filename = FALSE, opt quality = FALSE, opt filters = FALSE) as "\\imagepng";
+}

@@ -1,0 +1,668 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+//=============================================================================================
+
+//---------------------------------------------------------------------------------------------
+group PHP;
+//---------------------------------------------------------------------------------------------
+
+
+
+dummy() ::= <<
+/* Dummy FTW! */
+>>
+
+
+
+compile_result(declarations, source_filename, library_name) ::=<<
+/*DBGSRC:FS:<source_filename>:<library_name>*/
+<declarations; separator="\n\n\n">
+/*DBGSRC:FE:<source_filename>:<library_name>*/
+>>
+
+
+
+item(s, with_semi) ::= "<s><if(with_semi)>;<endif>"
+
+
+
+expression_with_semi(expression) ::= "<expression>;"
+
+
+
+void_dirty_call(pending_dcalls) ::= <<
+<pending_dcalls; separator="\n">
+>>
+
+
+
+void_clean_call(this_ccall, pending_dcalls) ::= <<
+<if(pending_dcalls)>
+<pending_dcalls; separator="\n"><\n>
+<endif>
+<this_ccall>;
+>>
+
+
+
+cparameter_val(id) ::= "<cvar(id)>"
+cparameter_ref(id) ::= "&<cvar(id)>"
+cparameter_opt(id, e) ::= "<cvar(id)> = <e>"
+
+
+
+dparameter_opt(id, default_value) ::= <<
+if( ! isset(<dvar(id)>)) { <dvar(id)> = <default_value>; }
+>>
+
+
+
+function_as_value(php_name, dirty) ::= <<
+___CaptureClosure('<php_name>', array(), <if(dirty)>TRUE<else>FALSE<endif>)
+>>
+
+
+
+declare_closure_indirect(php_name, initial_frame, initial_dummy_frame) ::= <<
+___CaptureClosure('<php_name>', <initial_frame>, TRUE)
+>>
+
+
+
+declare_closure(php_name, initial_frame, initial_dummy_frame) ::= <<
+array('php_name' => ((($___n = '<php_name>') && $___n[0] != '\\\\') ? '\\\\' . __NAMESPACE__ . '\\\\' : '') . $___n , 'frame' => <initial_frame>, 'dummy_frame' => <initial_dummy_frame>, 'dirty' => TRUE, 'Ⓚ⑤Ⓩ' => 42)
+>>
+
+
+
+named_argument_binder(parameter) ::= <<
+$arguments[<parameter.number>] =& $arguments['<parameter.variable.name>'];
+>>
+
+
+
+argument_binder(parameter) ::= <<
+<("argument_binder_" + parameter.mode)(parameter)>
+>>
+
+argument_binder_BYOPT(parameter) ::= <<
+$___frame[<parameter.variable.id>] = isset($arguments[<parameter.number>]) ? $arguments[<parameter.number>] : <parameter.optionalDefaultValue>;  // BYOPT
+>>
+
+
+
+argument_binder_BYREF(parameter) ::= <<
+$___frame[<parameter.variable.id>] =& $arguments[<parameter.number>]; // BYREF
+>>
+
+
+
+argument_binder_BYVAL(parameter) ::= <<
+$___frame[<parameter.variable.id>] = $arguments[<parameter.number>]; // BYVAL
+>>
+
+
+
+variable_map_variable(it) ::= <<
+<if(!it.temporary)>
+/*DBGSRC:VM:<it.name>:<it.id>*/<endif>
+>>
+
+
+
+jump_map(callee_identities) ::= <<
+switch($___jump) {
+    case 0: goto l0;
+    <callee_identities:jump_map_item(it); separator="\n">
+}
+>>
+
+
+
+jump_map_item(callee_identity) ::= <<
+<if(callee_identity.callId)>case <callee_identity.callId>: goto l<callee_identity.callId>;<endif>
+>>
+
+
+
+dirty_declare_function(name, php_name, by_ref, parameters, body, variables, have_jumps, with_debug_info, callee_identities) ::= <<
+//--------------------------------------------
+<if(with_debug_info)>/*DBGSRC:DS:<name>:<php_name>*/<endif>
+function <if(by_ref)>&<endif><php_name>($___frame, $arguments = null, $with_named_arguments = null)
+{
+    <if(with_debug_info)>
+    <variables:variable_map_variable(it); separator="\n">
+
+    <endif>
+    <if(have_jumps)>
+    global $___;
+
+    $___current_thread =& $___['current_thread'];
+    $___current_thread_call_stack =& $___current_thread['call_stack'];
+
+    $___frame[K5Z_FUNCTION_NAME] = __FUNCTION__;
+
+    $___jump =& $___frame[K5Z_FUNCTION_JUMP];
+    $___garbage =& $___frame[K5Z_GARBAGE];
+
+    $___jump = $___jump ?: 0;
+
+    <jump_map(callee_identities)>
+
+    l0:
+    <endif>
+    <if(parameters)>
+    if($with_named_arguments) {
+        <parameters:named_argument_binder(it); separator="\n">
+    }
+    <parameters:argument_binder(it); separator="\n">
+
+    <endif>
+    <body; separator="\n">
+}
+<if(with_debug_info)>/*DBGSRC:DE:<name>:<php_name>*/<endif>
+//--------------------------------------------
+>>
+
+
+
+dirty_declare_include_function(name, php_name, by_ref, parameters, body, variables, have_jumps, with_debug_info, callee_identities) ::= <<
+//--------------------------------------------
+<if(with_debug_info)>/*DBGSRC:DS:<name>:<php_name>*/<endif>
+function <if(by_ref)>&<endif><php_name>($___frame, $arguments = null, $with_named_arguments = null)
+{
+    <if(have_jumps)>
+    global $___;
+
+    $___current_thread =& $___['current_thread'];
+    $___current_thread_call_stack =& $___current_thread['call_stack'];
+
+    $___frame[K5Z_FUNCTION_NAME] = __FUNCTION__;
+
+    $___jump =& $___frame[K5Z_FUNCTION_JUMP];
+    $___garbage =& $___frame[K5Z_GARBAGE];
+
+    $___jump = $___jump ?: 0;
+
+    <jump_map(callee_identities)>
+
+    l0:
+    <endif>
+    <if(parameters)>
+    if($with_named_arguments) {
+        <parameters:named_argument_binder(it); separator="\n">
+    }
+    <parameters:argument_binder(it); separator="\n">
+    <endif>
+    ob_start();
+    <if(with_debug_info)>/*DBGSRC:IFS:<include_filename>*/<endif>
+    <body; separator="\n">
+    <if(with_debug_info)>/*DBGSRC:IFE:<include_filename>*/<endif>
+    return ob_get_clean();
+}
+<if(with_debug_info)>/*DBGSRC:DE:<name>:<php_name>*/<endif>
+//--------------------------------------------
+>>
+
+
+
+clean_declare_function(name, php_name, by_ref, parameters, body, with_debug_info) ::= <<
+//--------------------------------------------
+<if(with_debug_info)>/*DBGSRC:DS:<name>:<php_name>*/<endif>
+function <if(by_ref)>&<endif><php_name>(<parameters; separator=", ">)
+{
+    //global $___;
+
+    <body; separator="\n">
+}
+<if(with_debug_info)>/*DBGSRC:DE:<name>:<php_name>*/<endif>
+//--------------------------------------------
+>>
+
+
+
+clean_declare_include_function(name, php_name, by_ref, parameters, body, with_debug_info, include_filename) ::= <<
+//--------------------------------------------
+<if(with_debug_info)>/*DBGSRC:DS:<name>:<php_name>*/<endif>
+function <if(by_ref)>&<endif><php_name>(<parameters; separator=", ">)
+{
+    global $___;
+    ob_start();
+
+    <if(with_debug_info)>/*DBGSRC:IFS:<include_filename>*/<endif>
+    <body; separator="\n">
+    <if(with_debug_info)>/*DBGSRC:IFE:<include_filename>*/<endif>
+
+    return ob_get_clean();
+}
+<if(with_debug_info)>/*DBGSRC:DE:<name>:<php_name>*/<endif>
+//--------------------------------------------
+>>
+
+
+
+cblock(statements) ::= <<
+<statements;separator="\n">
+>>
+
+
+
+cvar(id) ::= "$<id>"
+
+
+
+dvar(id) ::= "$___frame[<id>]"
+
+
+
+by_ref(item) ::= "&<item>"
+
+
+
+carray(id, idx) ::=<<
+$<id>[<idx; separator="][">]
+>>
+
+
+
+darray(id, idx) ::=<<
+$___frame[<id>][<idx; separator="][">]
+>>
+
+
+
+array_definition(ades) ::= "array(<ades; separator=\", \">)"
+array_definition_element(key, value, ref) ::= "<if(key)><key> => <endif><if(ref)>&<endif><value>"
+
+
+
+expression_string(s) ::= "'<s>'"
+string_single_quoted(s) ::= "'<s>'"
+expression_int(i) ::= "<i>"
+expression_float(f) ::= "<f>"
+expression_boolean(b) ::= "<b>"
+
+
+
+op(t) ::= "<t>"
+
+
+
+expression_op(op, a_e, b_e) ::= "(<a_e> <op> <b_e>)"
+
+
+
+expression_negate(e) ::= "(-1 * (<e>))"
+expression_not(e) ::= "!(<e>)"
+
+
+
+expression_assign(t, e, pc, ae, ref) ::= "<t><if(ae)>[]<endif> =<if(ref)>&<endif> <e>"
+
+
+
+expression_postfix(v, d) ::= "<v><d>"
+expression_prefix(v, d) ::= "<d><v>"
+
+
+
+expression_nop() ::= ""
+
+
+
+expression_ternary(type, c, e1, e2) ::= <<
+(<c> <if(e2)>? <e1> : <e2><else>?: <e1><endif>)
+>>
+
+
+
+expression_null_coalesce(e1, e2) ::= <<
+(isset(<e1>) ? <e1> : <e2>)
+>>
+
+
+
+void_ccall(this_ccall) ::= <<
+<this_ccall.php_name>(<this_ccall.arguments; separator=", ">);
+>>
+
+
+
+ccall(php_name, arguments, by_ref) ::= <<
+<php_name>(<arguments; separator=", ">)
+>>
+
+
+
+cif(e, s1, s2) ::= <<
+if(<e>)
+{
+    <s1; separator="\n">
+}<if(s2)>
+else 
+{
+    <s2; separator="\n">
+}
+<endif>
+>>
+
+
+
+cwhile(e, s) ::= <<
+while((<e>) == TRUE)
+{
+    <s; separator="\n">
+}<\n>
+>>
+
+
+
+cfor(s1, e2, s3, s) ::= <<
+<s1; separator="\n">
+for(; <e2>; )
+{
+    <s; separator="\n">
+    <s3; separator="\n">
+}<\n>
+>>
+
+
+
+cforeach(a, ad, c, cl, v, p1, p2, ref, s) ::= <<
+<if(p2)>foreach(<a><ad><c><v><cl> as <p1> => <if(ref)>&<endif><p2>)<else>foreach(<a><ad><c><v><cl> as <if(ref)>&<endif><p1>)<endif>
+{
+    <s; separator="\n">
+}<\n>
+>>
+
+
+
+cbreak(e) ::= <<
+break <e>;<\n>
+>>
+
+
+
+ccontinue(e) ::= <<
+continue <e>;<\n>
+>>
+
+
+
+creturn(e) ::= <<
+return <e>;
+>>
+
+
+
+dcall(jump, php_name, arguments, not_garbage, garbage, have_named_arguments, by_ref) ::= <<
+// dirty CALL-<jump>
+<if(not_garbage)>// not garbage: <not_garbage; separator=", "><endif>
+<if(garbage)>// garbage: <garbage; separator=", "><endif>
+$___jump = <jump>;
+$___current_thread_call_stack[$___current_thread['call_stack_length']++] =& $___frame;
+<if(garbage)>$___garbage = array(<garbage; separator=", ">);<endif>
+$___frame[<jump>] =<if(by_ref)>&<endif> <php_name>(array(), <arguments>, <if(have_named_arguments)>TRUE<else>FALSE<endif>);
+unset($___current_thread_call_stack[--$___current_thread['call_stack_length']]);
+l<jump>:
+// dirty CALL-<jump> ends
+>>
+
+
+
+closure_invocation(jump, variable, arguments, not_garbage, garbage, have_named_arguments) ::= <<
+// CLOSINV-<jump>
+<if(not_garbage)>// not garbage: <not_garbage; separator=", "><endif>
+<if(garbage)>// garbage: <garbage; separator=", "><endif>
+$___c =& <variable>; 
+if(empty($___c['Ⓚ⑤Ⓩ'])) {
+    $___frame[<jump>] = $___c;
+}
+else {
+    $___args = <arguments>;
+    if($___c['dirty']) {
+        $___jump = <jump>;
+        $___current_thread_call_stack[$___current_thread['call_stack_length']++] =& $___frame;
+<if(garbage)>        $___garbage = array(<garbage; separator=", ">);<endif>
+        $___frame[<jump>] = $___c['php_name']($___c['frame'], $___args, <if(have_named_arguments)>TRUE<else>FALSE<endif>);
+        unset($___current_thread_call_stack[--$___current_thread['call_stack_length']]);
+    }
+    else {
+        $___frame[<jump>] = <if(have_named_arguments)>call_user_func_fancy<else>\call_user_func_array<endif>($___c['php_name'], $___args);
+    }
+}
+l<jump>: /* qqq */
+// CLOSINV-<jump> ends
+>>
+
+
+
+dif(jump, jump1, jump2, e, s1, s2) ::= <<
+// dirty IF-<jump>
+<if(s2)>
+if(<e>) { goto l<jump1>; }
+    <s2; separator="\n">
+    goto l<jump2>;
+l<jump1>:
+    <s1; separator="\n">
+l<jump2>:
+<else>
+if( ! (<e>) ) { goto l<jump1>; }
+    <s1; separator="\n">
+l<jump1>:
+<endif>
+<\n>// dirty IF-<jump> ends
+>>
+
+
+
+dwhile(jump, jump1, jump2, e, s, pn) ::= <<
+// dirty WHILE-<jump>
+l<jump1>:
+<pn; separator="\n">
+if((<e>) != TRUE) { goto l<jump2>; }
+    <s; separator="\n">
+goto l<jump1>;
+l<jump2>:
+// dirty WHILE-<jump> ends
+>>
+
+
+
+dfor(jump, jump1, jump2, s1, e2, s3, s, e2pn) ::= <<
+// dirty FOR-<jump>
+<s1; separator="\n">
+l<jump1>:
+<e2pn; separator="\n">if(<e2> != TRUE) { goto l<jump2>; }
+    <s; separator="\n">
+<s3; separator="\n">
+goto l<jump1>;
+l<jump2>:
+// dirty FOR-<jump> ends
+>>
+
+
+
+dforeach(jump, jump1, jump2, a, ad, c, cl, v, p1, p2, ref, s) ::= <<
+// dirty FOREACH-<jump>
+<if(c)><dvar(jump)>[0] = <c>;<endif><if(ad)><dvar(jump)>[0] = <ad>;<endif><if(a)><dvar(jump)>[0] =& <a>;<endif><if(v)><dvar(jump)>[0] =& <v>;<endif><if(cl)><dvar(jump)>[0] = <cl>;<endif>
+if(empty(<dvar(jump)>[0])) { goto l<jump2>; }
+<dvar(jump)>[1] = \array_keys(<dvar(jump)>[0]);
+<dvar(jump)>[2] = -1;
+<dvar(jump)>[3] = \count(<dvar(jump)>[0]);
+l<jump1>:
+    <dvar(jump)>[2]++;
+    <if(p2)><p2><else><p1><endif> =<if(ref)>&<endif> <dvar(jump)>[0][<dvar(jump)>[1][<dvar(jump)>[2]]];
+    <if(p2)><p1> = <dvar(jump)>[1][<dvar(jump)>[2]];<endif>
+    <s; separator="\n">
+if(<dvar(jump)>[2] + 1 != <dvar(jump)>[3]) { goto l<jump1>; }
+l<jump2>:
+// dirty FOREACH-<jump> ends
+>>
+
+
+
+dbreak(l) ::= <<
+// dirty BREAK
+goto l<l>;
+>>
+
+
+
+dcontinue(l) ::= <<
+// dirty CONTINUE
+goto l<l>;
+>>
+
+
+
+dreturn(e) ::= <<
+// dirty RETURN
+return <e>;
+>>
+
+
+
+dblock(statements) ::= <<
+<statements;separator="\n">
+>>
+
+
+
+library_output(name, declarations, has_initializer, is_program) ::= <<
+<declarations; separator="\n\n\n\n">
+//--------------------------------------------
+if(!function_exists(__NAMESPACE__ . '\___<name>_Bootstrap')) {
+    function ___<name>_Bootstrap() {
+    <if(has_initializer)>    ___PSM_AddStartupInitializer('<name>');<endif>
+    <if(is_program)>    ___PSM_SetProgramLibrary('<name>');<endif>
+    }
+}
+//--------------------------------------------
+if(!function_exists(__NAMESPACE__ . '\___<name>_ProcessProgramState')) {
+    function ___<name>_ProcessProgramState() {
+    }
+}
+//--------------------------------------------
+>>
+
+
+
+one_meta(meta) ::= <<
+<if(meta)>$___['___IMPORT_AND_INCLUDE_FILES'][] = array(<meta; separator=", ">);<endif>
+>>
+
+
+
+linked_library_output(name, content, source_filename, program_name, program_version, with_debug_info, metas) ::= <<
+//============================================
+// Library <name> starts
+//--------------------------------------------
+<if(with_debug_info)>/*DBGSRC:FS:<source_filename>:<name>*/
+//--------------------------------------------<endif>
+<if(metas)><metas:one_meta(it); separator="\n"><endif>
+//--------------------------------------------
+namespace K5Z\\<program_name>\\<program_version>;
+//--------------------------------------------
+<content>
+<if(with_debug_info)>/*DBGSRC:FE:<source_filename>:<name>*/<endif>
+//--------------------------------------------
+// Library <name> ends
+//============================================
+>>
+
+
+
+bootstrapper(name) ::= <<
+___<name>_Bootstrap();
+>>
+
+
+
+program_state_processor(name) ::= <<
+___<name>_ProcessProgramState();
+>>
+
+
+
+program_output(name, linked_library_code, compile_date, program_name, program_version, compiler_version, bootstrappers, program_state_processors, with_debug_info) ::= <<
+\<?php
+//============================================
+/* 
+    Compile date: <compile_date>
+    Compiler version: <compiler_version>
+*/
+
+namespace K5Z\\<program_name>\\<program_version>;
+
+
+//--------------------------------------------
+$___ = isset($___) ? $___ : array();
+//--------------------------------------------
+
+
+
+//--------------------------------------------
+$___['__COMPILE_DATE'] =  '<compile_date>';
+$___['__COMPILER_VERSION'] = '<compiler_version>';
+//--------------------------------------------
+
+
+
+//--------------------------------------------
+$___['___NAMESPACE'] = 'K5Z\\<program_name>\\<program_version>';
+//--------------------------------------------
+
+
+
+//--------------------------------------------
+$___['___WITH_DEBUG_INFO'] = <if(with_debug_info)>TRUE<else>FALSE<endif>;
+//--------------------------------------------
+
+
+
+//--------------------------------------------
+$___['___IMPORT_AND_INCLUDE_FILES'] = array();
+//--------------------------------------------
+
+
+
+<linked_library_code; separator="\n\n\n\n">
+
+
+//--------------------------------------------
+<if(bootstrappers)>$___['___BOOTSTRAPPERS'] = array(<bootstrappers:item_quoter(it); separator=",">);<endif>
+<if(program_state_processors)>$___['___PROGRAM_STATE_PROCESSORS'] = array(<program_state_processors:item_quoter(it); separator=",">);<endif>
+//--------------------------------------------
+<if(bootstrappers)><bootstrappers:bootstrapper(it); separator="\n"><endif>
+//--------------------------------------------
+___PSM_LoadProgramState();
+//--------------------------------------------
+<if(program_state_processors)><program_state_processors:program_state_processor(it); separator="\n"><endif>
+//--------------------------------------------
+___PSM_DetermineResumerThread();
+//--------------------------------------------
+___PSM_RunProgram();
+//--------------------------------------------
+
+
+
+//============================================
+>>
+
+
+
+item_quoter(value) ::= <<
+'<value>'
+>>
+
+
+
+dbgsrc(type, line, position, e) ::= <<
+
+/*DBGSRC:<type>:<line>:<position>*/ <e>
+>>
+//---------------------------------------------------------------------------------------------
+
+//=============================================================================================

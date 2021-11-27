@@ -1,0 +1,2 @@
+BASEDIR=$(dirname $0)
+java -classpath $BASEDIR/lib/build/stringtemplate-4.0.2.jar:$BASEDIR/lib/build/antlr-3.4.jar:$BASEDIR/lib/compile/antlr-runtime-3.4.jar org.antlr.Tool $1 $2 $3 $4

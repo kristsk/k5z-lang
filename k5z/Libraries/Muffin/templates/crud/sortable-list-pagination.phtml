@@ -1,0 +1,36 @@
+<?php extract($variables); ?>
+
+<nav class="navbar navbar-default" role="navigation">
+	<div class="container-fluid">
+		<div class="collapse navbar-collapse">
+			<ul class="nav navbar-nav">
+				<li><a href="<?= $pagination['first_url'] ?>">First</a></li>
+				<li><a href="<?= $pagination['previous_url'] ?>">Previous</a></li>
+				<?php foreach ($pagination['page_urls'] as $page_number => $page_url): ?>
+					<?php if ($page_url): ?>
+						<li><a href="<?= $page_url ?>"><?= $page_number ?></a></li>
+					<?php else: ?>
+						<li class="active"><a href="#"><?= $page_number ?></a></li>
+					<?php endif ?>
+				<?php endforeach ?>
+				<li><a href="<?= $pagination['next_url'] ?>">Next</a></li>
+				<li><a href="<?= $pagination['last_url'] ?>">Last</a></li>
+				<li class="dropdown">
+					<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">
+						Page size: <?= $pagination['current_page_size'] ?><span class="caret"></span>
+					</a>
+					<ul class="dropdown-menu" role="menu">
+						<?php foreach ($pagination['page_size_urls'] as $page_size => $page_size_url): ?>
+							<?php if ($page_size_url): ?>
+								<li><a href="<?= $page_size_url ?>"><?= $page_size ?></a></li>
+							<?php else: ?>
+								<li class="active"><a href="#"><?= $page_size ?></a></li>
+							<?php endif ?>
+						<?php endforeach ?>
+					</ul>
+				</li>
+			</ul>
+			<p class="navbar-text">Total rows: <?= $pagination['row_count'] ?></p>
+		</div>
+	</div>
+</nav>

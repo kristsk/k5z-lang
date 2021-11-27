@@ -1,0 +1,13 @@
+<?php
+/* @var $variables */
+/* @var $data */
+/* @var $params */
+extract($variables); ?>
+<button
+        type="button"
+        class="btn btn-outline-secondary reset"
+        data-muffin-form-button
+        data-incremental
+        data-form-id="<?= $params['form_id'] ?>"
+        data-url="<?= $data['action_url'] ?>"
+><?= $data['title'] ?></button>

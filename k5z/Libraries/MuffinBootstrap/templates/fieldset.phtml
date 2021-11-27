@@ -1,0 +1,10 @@
+<?php
+/* @var $variables */
+/* @var $params */
+/* @var $elements */
+extract($variables); ?>
+<fieldset id="<?= $params['fieldset_id'] ?>">
+    <?php foreach ($elements as $element): ?>
+        <?= $element ?>
+    <?php endforeach ?>
+</fieldset>

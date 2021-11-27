@@ -1,0 +1,91 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+ 
+program Muffinator;
+
+
+
+import StandaloneWebApplication, WebApplication as WS from "SystemLibraries";
+
+import Kitchen, SomeMachine, CurrentMachine, CurrentMuffin, SomeMuffin, Output from "Libraries/Muffin";
+import MuffinBootstrapUI as BSUI from "Libraries/MuffinBootstrap";
+
+import LoginChecker, Calculator, ControlPanel;
+
+
+
+include phtml "templates/main.phtml" as function MainTemplate(val variables);
+include phtml "templates/root.phtml" as function RootTemplate(val variables);
+
+
+
+function Main() {
+
+    Kitchen::SetContentRootSource(::MyRootSource);
+
+    login = ::DoTheLoginCheckerDance();
+
+    SomeMachine::MakeAndRun(@{
+
+        calculators = [];
+
+        Calculator::MakeCalculator(login .. " ONE!", calculators);
+        Calculator::MakeCalculator(login .. " TWO!", calculators);
+        Calculator::MakeCalculator(login .. " THREE!", calculators);
+
+        control_panel = ControlPanel::MakeControlPanel(calculators);
+
+        CurrentMachine::SetRootMuffin(
+            SomeMuffin::MakeWith(
+                content_source: @(val mode){
+
+                    if(mode == "insert_container") {
+                    
+                        Output::Html("<h1>" .. mode .. "</h1>");
+                        return TRUE;
+                    }
+
+                     template_variables = [
+                        .control_panel => @( Output::Muffin(control_panel) ),
+                        .calculators => []
+                    ];
+
+                    foreach(ArrayKeys(calculators) as calculator) {
+
+                        template_variables.calculators[] = @( Output::Muffin($calculator) );
+                    }
+
+                    Output::Template(::MainTemplate, template_variables);
+                },
+                frame_source: SomeMuffin::MakeDefaultFrameSource("muffinator-frame")
+            )
+        );
+    });
+}
+
+function MyRootSource(val mode, val content_source, ref contexts) {
+
+    BSUI::OutputResources();
+
+    Output::Template(::RootTemplate, [
+        .content => @( @content_source(mode) ),
+        .css_links => @( Output::CssLinks() ),
+        .css => @( Output::Css() ),
+        .javascript_links => @( Output::JavaScriptLinks() ),
+        .javascript => @( Output::JavaScript() ),
+        .dev_tools => @( Output::DevTools(with_inline_stats: TRUE, with_inline_debug: TRUE) )
+    ]);
+}
+
+function DoTheLoginCheckerDance() {
+
+    return SomeMachine::MakeAndRun(@{
+
+        CurrentMachine::SetRootMuffin(
+            LoginChecker::MakeLoginChecker(success_action: @(val login) {
+
+                CurrentMachine::Terminate(return_value: login);
+            })
+        );
+    });
+}

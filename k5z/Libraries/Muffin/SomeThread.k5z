@@ -1,0 +1,78 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library SomeThread;
+
+
+
+function Debug(val p1, val p2, opt suffix = "") {
+
+    MaybeDebug("muffin.some_thread" .. suffix, p1, p2);
+}
+
+
+
+function RegisterContext(val thread_name, val context_name, opt initial_context_data = []) {
+
+    some_thread_contexts =& GetThreadPropertyRef(thread_name, "contexts", []);
+
+    some_thread_contexts[context_name] = initial_context_data;
+}
+
+
+
+function RegisterContextRef(val thread_name, val context_name, ref initial_context_data) {
+
+    some_thread_contexts =& GetThreadPropertyRef(thread_name, "contexts", []);
+
+    some_thread_contexts[context_name] =& initial_context_data;
+}
+
+
+
+function DoWithContexts(val thread_name, val closure) {
+
+    kitchen_thread_contexts =& GetThreadPropertyRef("kitchen-thread", "contexts", []);
+    current_thread_contexts =& GetThreadPropertyRef(thread_name, "contexts", []);
+
+    context_collections = [
+        &kitchen_thread_contexts,
+        &current_thread_contexts
+    ];
+
+    contexts = [];
+    foreach(context_collections as &context_collection) {
+
+        foreach(context_collection as context_name => &context) {
+
+            contexts[context_name] =& context;
+        }
+    }
+
+    return @closure(contexts);
+}
+
+
+
+function ref GetContextRef(val thread_name, val context_name) {
+
+    thread_contexts =& GetThreadPropertyRef(thread_name, "contexts", []);
+
+    return thread_contexts[context_name];
+}
+
+
+
+function GetContextNames(val thread_name) {
+
+    return ArrayKeys(GetThreadPropertyRef(thread_name, "contexts", []));
+}
+
+
+
+function ForgetContext(val thread_name, val context_name) {
+
+    current_thread_contexts =& GetThreadPropertyRef(thread_name, "contexts", []);
+
+    UnSet(current_thread_contexts[context_name]);
+}

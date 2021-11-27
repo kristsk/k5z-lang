@@ -1,0 +1,109 @@
+<h1>Internal Error!</h1>
+
+<fieldset>
+    <legend>Error Message</legend>
+    <?= $variables['message'] ?>
+</fieldset>
+
+<fieldset>
+    <?php $k5z_error_context = $variables['context']['error_contexts']['k5z']; ?>
+    <legend>K5Z Context</legend>
+    <?php if ($k5z_error_context['library'] != 'Core'): ?>
+        File: <a href="idea://open?file=<?= $k5z_error_context['file'] ?>&line=<?= trim($k5z_error_context['line']) ?>">
+            <?= $k5z_error_context['file'] ?>:<?= $k5z_error_context['line'] ?>
+        </a>
+        <br/>
+    <?php endif ?>
+    <?php if ($k5z_error_context['library']): ?>
+        Library: <?= $k5z_error_context['library'] ?><br/>
+    <?php endif ?>
+    <?php if ($k5z_error_context['declaration']): ?>
+        Declaration: <?= $k5z_error_context['declaration'] ?><br/>
+    <?php endif ?>
+</fieldset>
+
+<fieldset>
+    <?php $php_error_context = $variables['context']['error_contexts']['php']; ?>
+    <legend>PHP Context</legend>
+    File: <a href="idea://open?file=<?= $php_error_context['filename'] ?>&line=<?= $php_error_context['line'] ?>">
+        <?= $php_error_context['filename'] ?>:<?= $php_error_context['line'] ?>
+    </a>
+    <br/>
+    Error Type:
+    <?php if ($php_error_context['type'] == E_USER_ERROR): ?>
+        E_USER_ERROR
+    <?php elseif ($php_error_context['type'] == E_NOTICE): ?>
+        E_NOTICE
+    <?php else: ?>
+        <?= $php_error_context['type'] ?> (???)
+    <?php endif ?>
+</fieldset>
+
+<hr/>
+
+[
+<a href='?wipe_and_start'>WIPE AND START</a> |
+<a href='?recompile'>RECOMPILE</a> |
+<a href='?show_debug' target='_blank' name='debug'>DEBUG</a> |
+<a href='?clear_debug' target='_blank' name='debug'>CLEAR DEBUG</a> |
+<a href='?show_stats' target='_blank' name='status'>STATS</a>
+]
+
+<hr/>
+
+<fieldset>
+    <legend>Stack trace</legend>
+
+    <table width="100%" border="1">
+        <tr>
+            <th></th>
+            <th>PHP context</th>
+            <th>K5Z context</th>
+        </tr>
+        <?php foreach ($variables['context']['trace'] as $key => $trace_item): ?>
+            <tr>
+                <td width="10%" align="center"><?= $key + 1 ?>.</td>
+                <td width="40%" valign="top">
+                    <?php $php_trace_item = $trace_item['php']; ?>
+
+                    <?php if (isset($php_trace_item['file']) && $php_trace_item['file']): ?>
+                        <?php if (isset($php_trace_item['line']) && $php_trace_item['line']): ?>
+                            <a href="idea://open?file=<?= $php_trace_item['file'] ?>&line=<?= $php_trace_item['line'] ?>">
+                                <?= $php_trace_item['file'] ?>:<?= $php_trace_item['line'] ?><br/>
+                            </a>
+                        <?php else: ?>
+                            <?= $php_trace_item['file'] ?>
+                        <?php endif ?>
+                    <?php endif ?>
+
+                    <?php if (isset($php_trace_item['function'])): ?>
+                        <?= $php_trace_item['function']; ?>
+                    <?php endif ?>
+                </td>
+
+                <td width="40%" valign="top">
+                    <?php $k5z_trace_item = $trace_item['k5z']; ?>
+
+                    <?php if (isset($k5z_trace_item['file']) && $k5z_trace_item['file']): ?>
+                        <?php if (isset($k5z_trace_item['line']) && $k5z_trace_item['line']): ?>
+                            <a href="idea://open?file=<?= $k5z_trace_item['file'] ?>&line=<?= $k5z_trace_item['line'] ?>">
+                                <?= $k5z_trace_item['file'] ?>:<?= $k5z_trace_item['line'] ?>
+                            </a>
+                        <?php else: ?>
+                            <?= $k5z_trace_item['file'] ?>
+                        <?php endif ?>
+                        <br/>
+                    <?php endif ?>
+
+                    <?php if (isset($k5z_trace_item['library'])): ?>
+                        <?= $k5z_trace_item['library'] ?>
+                    <?php endif ?>
+                    <?php if (isset($k5z_trace_item['declaration'])): ?>
+                        ::<?= $k5z_trace_item['declaration'] ?> <br/>
+                    <?php endif ?>
+                </td>
+            </tr>
+        <?php endforeach ?>
+    </table>
+
+</fieldset>

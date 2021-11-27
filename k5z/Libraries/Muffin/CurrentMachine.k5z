@@ -1,0 +1,73 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library CurrentMachine;
+
+
+
+import CurrentThread, SomeMuffin;
+
+
+
+function GetMuffinInSlot(val slot_name) {
+
+    return CurrentThread::DoWithContexts(@(ref contexts) {
+
+        return IsSet(contexts.machine.slots[slot_name])
+            ? contexts.machine.slots[slot_name]
+            : FALSE;
+    });
+}
+
+
+
+function SetRootMuffin(val muffin_name) {
+
+    CurrentThread::DoWithContexts(@(ref contexts) {
+
+        root_muffin_frame_source = contexts.kitchen.muffins[muffin_name].frame_source;
+
+        contexts.kitchen.muffins[muffin_name].frame_source =
+            @(val mode, val content_source, ref contexts2){
+
+                if (mode == "full" || mode == "full_refresh") {
+
+                    @contexts2.kitchen.content_root_source(
+                        mode,
+                        @( @root_muffin_frame_source(mode, content_source, contexts2) ),
+                        contexts2
+                    );
+                }
+                else {
+
+                    @root_muffin_frame_source(mode, content_source, contexts2);
+                }
+            };
+
+        contexts.machine.root_muffin_name = muffin_name;
+        contexts.kitchen.machines[contexts.machine.name].root_muffin_name = muffin_name;
+    });
+}
+
+
+
+function Terminate(val return_value) {
+
+    CurrentThread::DoWithContexts(@(ref contexts) {
+
+        contexts.kitchen.machines[contexts.machine.name].return_value = return_value;
+        contexts.kitchen.machines[contexts.machine.name].terminated = TRUE;
+
+        foreach(contexts.kitchen.machines[contexts.machine.name].muffins as muffin_name) {
+
+            if(muffin_name != contexts.machine.root_muffin_name) {
+            
+                SomeMuffin::Terminate(muffin_name);
+            }
+        }
+
+        SomeMuffin::Terminate(contexts.machine.root_muffin_name);
+
+        SwitchToThread(contexts.machine.starter_thread_name, return_value);
+    });
+}

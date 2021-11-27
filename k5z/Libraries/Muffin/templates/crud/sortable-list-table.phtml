@@ -1,0 +1,39 @@
+<?php extract($variables); ?>
+
+<table class="table table-striped">
+	<thead>
+	<tr>
+		<?php foreach ($columns as $column_name => $column_title): ?>
+			<th>
+				<?php if(isset($sorting[$column_name])): ?>
+					<a href="<?= $sorting[$column_name]['next_order_url'] ?>">
+						<?= $column_title ?>
+						<?= $sorting[$column_name]['current_order']
+							? '(' . $sorting[$column_name]['current_order'] . ')'
+							: ''
+						?>
+					</a>
+				<?php else: ?>
+					<?= $column_title ?>
+				<?php endif ?>
+			</th>
+		<?php endforeach ?>
+		<th></th>
+	</tr>
+	</thead>
+
+	<tbody>
+	<?php foreach ($items as $item): ?>
+		<tr>
+			<?php foreach (array_keys($columns) as $column_name): ?>
+				<td><?= $item[$column_name] ?></td>
+			<?php endforeach ?>
+			<td>
+				<a href="<?= $item['update_url'] ?>">Update</a>
+				|
+				<a href="<?= $item['delete_url'] ?>">Delete</a>
+			</td>
+		</tr>
+	<?php endforeach ?>
+	</tbody>
+</table>

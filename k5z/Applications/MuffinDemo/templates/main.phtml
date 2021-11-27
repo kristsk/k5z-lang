@@ -1,0 +1,14 @@
+<?php
+/* @var $variables */
+/* @var $control_panel */
+/* @var $calculators */
+extract($variables); ?>
+<div class="row control-panel">
+    <?= $control_panel ?>
+</div>
+
+<div class="row calculators">
+    <?php foreach ($calculators as $calculator): ?>
+        <?= $calculator ?>
+    <?php endforeach ?>
+</div>

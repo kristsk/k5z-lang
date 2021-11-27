@@ -1,0 +1,299 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library Exchange;
+
+
+
+import SomeThread, SomeMuffin, SomeMachine;
+
+
+
+function InitializeEmpty(ref contexts) {
+
+    ::ClearRequest(contexts);
+    ::ClearResponse(contexts);
+}
+
+
+
+function InitializeWithRawRequestData(ref contexts, val raw_request_data) {
+
+    ::InitializeEmpty(contexts);
+
+    contexts.exchange.request.raw = raw_request_data;
+}
+
+
+
+function ClearRequest(ref contexts) {
+
+    contexts.exchange.request = [
+        .raw => [
+             .method => FALSE,
+             .get => [],
+             .post => [],
+             .cookies => []
+         ],
+        .resolved => [
+            .flapjack_name => FALSE,
+            .machine_name => FALSE,
+            .muffin_name => FALSE,
+            .return_action_id => FALSE,
+            .fancy_url_action_closure => FALSE,
+            .fancy_url => FALSE
+        ],
+        .is_bad => FALSE
+    ];
+}
+
+
+
+function ClearResponse(ref contexts) {
+
+    contexts.exchange.response =  [
+        .machine_name => FALSE,
+        .type => FALSE,
+        .is_refresh => FALSE,
+        .increments => [],
+        .content => [
+            .body => FALSE,
+            .headers => FALSE,
+            .http_code => FALSE
+        ]
+    ];
+}
+
+
+
+function ClearPersistent(ref contexts) {
+
+    contexts.exchange.persistent = [
+        .css_once => []
+    ];
+}
+
+
+
+function IsMachineRequest(ref contexts) {
+
+    return (contexts.exchange.request.raw.get.m ?? FALSE) != FALSE;
+}
+
+
+
+function IsReturnActionIdRequest(ref contexts) {
+
+    return (contexts.exchange.request.raw.get.id ?? FALSE) != FALSE;
+}
+
+
+
+function IsFlapjackRequest(ref contexts) {
+
+    return (contexts.exchange.request.raw.get.f ?? FALSE) != FALSE;
+}
+
+
+
+function IsFancyUrlRequest(ref contexts) {
+
+    return (contexts.exchange.request.raw.get.___url___ ?? FALSE)  != FALSE;
+}
+
+
+
+function IsBadRequest(ref contexts) {
+
+    return contexts.exchange.request.is_bad;
+}
+
+
+
+function ExpectsFullResponse(ref contexts) {
+
+    return !::ExpectsIncrementalResponse(contexts);
+}
+
+
+
+function ExpectsIncrementalResponse(ref contexts) {
+
+    return contexts.exchange.request.raw.server["HTTP_ACCEPT"] === "application/json+k5z-incremental";
+}
+
+
+
+function GetRequestMachineName(ref contexts) {
+
+    return contexts.exchange.request.resolved.machine_name;
+}
+
+
+
+function GetRequestMuffinName(ref contexts) {
+
+    return contexts.exchange.request.resolved.muffin_name;
+}
+
+
+
+function GetReturnActionId(ref contexts) {
+
+    return contexts.exchange.request.resolved.return_action_id;
+}
+
+
+
+function GetRequestFancyUrlActionClosure(ref contexts) {
+
+    return contexts.exchange.request.resolved.fancy_url_action_closure;
+}
+
+
+
+function GetRequestFlapjackName(ref contexts) {
+
+    return contexts.exchange.request.resolved.flapjack_name;
+}
+
+
+
+function ResolveFlapjackRequest(ref contexts) {
+
+    request =& contexts.exchange.request;
+
+    request.fapjack_name = request.raw.get.f ?? FALSE;
+
+    return request.resolved.flapjack_name != FALSE;
+}
+
+
+
+function ResolveReturnActionIdRequest(ref contexts) {
+
+    raw =& contexts.exchange.request.raw;
+    resolved =& contexts.exchange.request.resolved;
+
+    resolved.machine_name = raw.get.m ?? FALSE;
+    resolved.muffin_name = raw.get.u ?? FALSE;
+    resolved.return_action_id = raw.get.id ?? FALSE;
+
+    return
+        resolved.machine_name && SomeMachine::IsActive(resolved.machine_name)
+        &&
+        resolved.muffin_name && SomeMuffin::IsActive(resolved.muffin_name)
+        &&
+        resolved.return_action_id;
+}
+
+
+
+function ResolveFancyUrlRequest(ref contexts) {
+
+    result = FALSE;
+
+    raw =& contexts.exchange.request.raw;
+    resolved =& contexts.exchange.request.resolved;
+
+    this_fancy_url = raw.get.___url___ ?? FALSE;
+
+    if(this_fancy_url) {
+
+        foreach(contexts.kitchen.fancy_urls as machine_name => machine_fancy_urls) {
+
+            foreach(machine_fancy_urls as some_fancy_url => action_closure) {
+
+                if(SubstringPosition(this_fancy_url, some_fancy_url) === 0) {
+
+                    resolved.this_fancy_url = this_fancy_url;
+                    resolved.matched_fancy_url = some_fancy_url;
+                    resolved.machine_name = machine_name;
+                    resolved.fancy_url_action_closure = action_closure;
+
+                    break 2;
+               }
+            }
+        }
+    }
+
+    return
+        resolved.machine_name && SomeMachine::IsActive(resolved.machine_name)
+        &&
+        resolved.fancy_url_action_closure;
+}
+
+
+
+function HaveResponseMachineName(ref contexts) {
+
+    return contexts.exchange.response.machine_name != FALSE;
+}
+
+
+
+function GetResponseMachineName(ref contexts) {
+
+    return contexts.exchange.response.machine_name;
+}
+
+
+
+function SetResponseMachineName(ref contexts, val machine_name) {
+
+    contexts.exchange.response.machine_name = machine_name;
+}
+
+
+
+function GetResponseType(ref contexts) {
+
+    return contexts.exchange.response.type;
+}
+
+
+
+function SetResponseType(ref contexts, val type) {
+
+    contexts.exchange.response.type = type;
+}
+
+
+
+function IsRefreshResponse(ref contexts) {
+
+   return contexts.exchange.response.is_refresh;
+}
+
+
+
+function SetIsRefreshResponse(ref contexts, val is_refresh) {
+
+    Exchange::ClearPersistent(contexts);
+    contexts.exchange.response.is_refresh = is_refresh;
+}
+
+
+
+function SetResponseContent(ref contexts, val body, val headers, val http_code) {
+
+    contexts.exchange.response.contents = [
+        .body => body,
+        .headers => headers,
+        .http_code => http_code
+    ];
+}
+
+
+function AddIncrementalResponseOperation(ref contexts, val operation_type, val data, opt extra_context = []) {
+
+    data.operation_type = operation_type;
+
+    contexts.exchange.response.increments[] = [
+        .context => ArrayMerge( [
+                .machine => contexts.machine,
+                .muffin => contexts.muffin ?? FALSE
+            ], extra_context),
+        .data => data
+    ];
+}

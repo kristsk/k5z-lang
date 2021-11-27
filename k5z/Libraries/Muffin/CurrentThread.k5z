@@ -1,0 +1,65 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library CurrentThread;
+
+
+
+import SomeThread;
+
+
+
+function Debug(val p1, val p2, opt suffix = "") {
+
+    MaybeDebug("muffin.current_thread" .. suffix, p1, p2);
+}
+
+
+
+function RegisterContext(val context_name, opt initial_context_data = []) {
+
+    current_thread_contexts =& GetCurrentThreadPropertyRef("contexts", []);
+
+    current_thread_contexts[context_name] = initial_context_data;
+}
+
+
+
+function RegisterContextRef(val context_name, ref initial_context_data) {
+
+    current_thread_contexts =& GetCurrentThreadPropertyRef("contexts", []);
+
+    current_thread_contexts[context_name] =& initial_context_data;
+}
+
+
+
+function DoWithContexts(val closure) {
+
+    return SomeThread::DoWithContexts(CurrentThreadName(), closure);
+}
+
+
+
+function GetContextNames() {
+
+    return ArrayKeys(GetCurrentThreadPropertyRef("contexts", []));
+}
+
+
+
+function ForgetContext(val context_name) {
+
+    current_thread_contexts =& GetCurrentThreadPropertyRef("contexts", []);
+
+    UnSet(current_thread_contexts[context_name]);
+}
+
+
+
+function ref GetContextRef(val context_name) {
+
+    current_thread_contexts =& GetCurrentThreadPropertyRef("contexts", []);
+
+    return current_thread_contexts[context_name];
+}

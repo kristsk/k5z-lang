@@ -1,0 +1,209 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library MuffinBootstrapUI;
+
+
+
+import Output from "Libraries/Muffin";
+import CurrentMuffin from "Libraries/Muffin";
+import Form from "Libraries/Muffin/Form";
+
+
+
+include phtml "templates/element-wrapper.phtml" as function ElementWrapperTemplate(val variables);
+include phtml "templates/form-button.phtml" as function FormButtonTemplate(val variables);
+include phtml "templates/form-submit-button.phtml" as function FormSubmitButtonTemplate(val variables);
+include phtml "templates/form-reset-button.phtml" as function FormResetButtonTemplate(val variables);
+include phtml "templates/form.phtml" as function FormTemplate(val variables);
+include phtml "templates/fieldset.phtml" as function FieldsetTemplate(val variables);
+include phtml "templates/element-collection.phtml" as function ElementCollectionTemplate(val variables);
+include phtml "templates/text-input.phtml" as function TextInputTemplate(val variables);
+include phtml "templates/password-input.phtml" as function PasswordInputTemplate(val variables);
+include phtml "templates/text-output.phtml" as function TextOutputTemplate(val variables);
+include phtml "templates/checkbox.phtml" as function CheckboxTemplate(val variables);
+include phtml "templates/textarea.phtml" as function TextareaTemplate(val variables);
+include phtml "templates/select.phtml" as function SelectTemplate(val variables);
+include phtml "templates/muffin-bootstrap.js" as function MuffinBootstrapJavaScriptTemplate();
+include phtml "templates/input-label.phtml" as function InputLabelTemplate(val variables);
+include phtml "templates/input-element.phtml" as function InputElementTemplate(val variables);
+include phtml "templates/element-errors.phtml" as function ElementErrorsTemplate(val variables);
+
+include phtml "templates/dialog/choice-buttons.phtml" as function ChoiceButtonsDialogTemplate(val variables);
+
+
+
+function OutputResources(opt resources = []) {
+
+    Output::AddCssLink(resources.bootstrap_css ?? "bootstrap.css");
+
+    Output::AddJavaScriptLink(resources.jquery_js ?? "jquery.js");
+    Output::AddJavaScriptLink(resources.popper_js ?? "popper.js");
+    Output::AddJavaScriptLink(resources.bootstrap_js ?? "bootstrap.js");
+
+    Output::AddJavaScriptOnce("muffin-bootstrap.js", ::MuffinBootstrapJavaScriptTemplate);
+}
+
+
+
+function ActionButton(val title, val action, opt url_extra = "") {
+
+    Output::Html("<button type='button' class='btn btn-default' onclick='javascript:document.location=");
+    Output::ActionUrl(action, JsonEncode);
+    Output::Html(url_extra .. ";'>" .. @title() .. "</button>");
+}
+
+
+
+function MakeFormRenderer(opt form_options = [], opt types_options = FALSE) {
+
+    return Form::MakeDefaultRenderer(
+        ::DefaultFormElementTypesOptions,
+        ::OutputResources,
+        form_options,
+        types_options
+    );
+}
+
+
+
+function DefaultFormElementTypesOptions(val overrides) {
+
+    defaults = [
+        .text_input => [
+            .parts => [
+                .label => ::InputLabelTemplate,
+                .input => ::TextInputTemplate,
+                .errors => ::ElementErrorsTemplate
+            ],
+            .template => ::InputElementTemplate
+        ],
+        .password_input => [
+            .parts => [
+                .label => ::InputLabelTemplate,
+                .input => ::PasswordInputTemplate,
+                .errors => ::ElementErrorsTemplate
+            ],
+            .template => ::InputElementTemplate
+        ],
+        .text_output => [
+            .parts => [
+                .label => ::InputLabelTemplate,
+                .input => ::TextOutputTemplate,
+                .errors => ::ElementErrorsTemplate
+            ],
+            .template => ::InputElementTemplate
+        ],
+        .textarea => [
+            .parts => [
+                .label => ::InputLabelTemplate,
+                .input => ::TextareaTemplate,
+                .errors => ::ElementErrorsTemplate
+            ],
+            .template => ::InputElementTemplate
+        ],
+        .checkbox => [
+            .parts => [
+                .label => ::InputLabelTemplate,
+                .input => ::CheckboxTemplate
+            ],
+            .params => [
+                .label_after_input => TRUE
+            ],
+            .template => ::InputElementTemplate
+        ],
+        .element_collection => [
+            .template => ::ElementCollectionTemplate,
+            .element_wrapper => ::ElementWrapperTemplate,
+            .wrapper => FALSE
+        ],
+        .form_button => [
+            .template => ::FormButtonTemplate
+        ],
+        .submit_button => [
+            .template => ::FormSubmitButtonTemplate
+        ],
+        .reset_button => [
+            .template => ::FormResetButtonTemplate
+        ],
+        .fieldset => [
+            .template => ::FieldsetTemplate
+        ],
+        .form => [
+            .element_wrapper => ::ElementWrapperTemplate,
+            .template => ::FormTemplate
+        ],
+        .select => [
+            .parts => [
+                .label => ::InputLabelTemplate,
+                .input => ::SelectTemplate,
+                .errors => ::ElementErrorsTemplate
+            ],
+            .template => ::InputElementTemplate
+        ]
+    ];
+
+    types_options = overrides;
+
+    Form::AddDefaultsRecursive(types_options, defaults);
+
+    return types_options;
+}
+
+
+
+function ChoiceButtonsDialog(val message, val buttons) {
+
+     buttons_urls = [];
+     foreach(buttons as value => title) {
+
+        button_action = @( CurrentMuffin::EndDialog($value) );
+
+        buttons_urls[] = [
+            .title => title,
+            .url => @( Output::ActionUrl( $button_action) )
+        ];
+     }
+
+     return CurrentMuffin::StartDialogWithSource(@{
+
+         Output::Template(
+             ::ChoiceButtonsDialogTemplate,
+             [
+                .message => message,
+                .buttons => buttons_urls
+             ]
+          );
+     });
+}
+
+
+
+function OkDialog(val message) {
+
+    return ::ChoiceButtonsDialog(message, [ TRUE => "Okay" ]);
+}
+
+
+
+function YesNoDialog(val message, opt yes_value = TRUE, opt no_value = FALSE) {
+
+    return ::ChoiceButtonsDialog(message, [
+        yes_value => "Yes",
+        no_value => "No"
+    ]);
+}
+
+
+
+function YesNoCancelDialog(val question, val yes_value, val no_value, val cancel_value) {
+
+    return ::ChoiceButtonsDialog(question, [
+        yes_value => "Yes",
+        no_value => "No",
+        cancel_value => "Cancel"
+    ]);
+}
+
+
+

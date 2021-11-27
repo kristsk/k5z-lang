@@ -1,0 +1,108 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library FormElementUtils;
+
+
+
+function Debug(val p1, val p2, opt suffix = "") {
+
+    MaybeDebug("muffin.form" .. suffix, p1, p2);
+}
+
+
+
+function ToLowercase(ref element) {
+
+    element.current_value = StrToLower(element.current_value);
+}
+
+
+
+function ToUpperCase(ref element) {
+
+    element.current_value = StrToUpper(element.current_value);
+}
+
+
+
+function Required(ref element) {
+
+    if(IsEmpty(element.current_value)) {
+
+        element.errors.is_required = "Value is required.";
+
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+
+
+function DecimalNumber(ref element) {
+
+    if(
+        element.current_value
+        &&
+        !PregMatch("@^\\-?\\d+(\\.\\d+)?$@", element.current_value)
+    ){
+
+        element.errors.not_decimal_number = "A decimal number is required";
+
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+
+
+function PositiveNumber(ref element) {
+
+    if(
+        element.current_value
+        &&
+        element.current_value < 0
+    ){
+
+        element.errors.not_decimal_number = "A positive number is required";
+
+        return FALSE;
+    }
+
+    return TRUE;
+}
+
+
+
+function Email(ref element) {
+
+       if(
+           element.current_value
+           &&
+           !PregMatch("%.+@.+%", element.current_value)
+       ) {
+            element.errors.not_valid_email = "Not a valid email";
+
+            return FALSE;
+       }
+
+       return TRUE;
+}
+
+
+
+function MinLength(val min_length) {
+
+    return @(ref element) {
+        if(StrLength(element.current_value) < min_length) {
+
+           element.errors.min_length = "Minimum length is " .. IntVal(min_length);
+
+           return FALSE;
+        }
+
+        return TRUE;
+    };
+}

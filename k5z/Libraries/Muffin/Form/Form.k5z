@@ -1,0 +1,496 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library Form;
+
+
+
+import WebApplication as WA from "SystemLibraries";
+
+import Meatloaf as ML from "Libraries";
+
+import CurrentMuffin, CurrentFlapjack, SomeFlapjack, Output from "Libraries/Muffin";
+
+
+
+function Debug(val p1, val p2, opt suffix = "") {
+
+    //MaybeDebug("muffin.forms" .. suffix, p1, p2);
+    Debug(p1, p2);
+}
+
+
+
+function BaseElement() {
+
+    return @(ref self) {
+
+        self.type = "base_element";
+
+        self.reset_action = FALSE;
+        self.submit_action = FALSE;
+        self.update_action = FALSE;
+
+        self.errors = [];
+
+        self.visible = TRUE;
+
+        self.filters = [];
+        self.validators = [];
+
+        self.validate = @{
+
+            self.errors = [];
+
+            foreach(self.validators as validator) {
+
+                @validator(self);
+            }
+
+            return IsEmpty(self.errors);
+        };
+
+        self.filter = @{
+
+            foreach(self.filters as filter) {
+
+                @filter(self);
+            }
+        };
+
+        self.fetch = FALSE;
+
+        self.output = FALSE;
+    };
+}
+
+
+
+function BaseCollection() {
+
+    return [
+        .new => @( ::BaseElement() ),
+        .bind => @(ref self) {
+
+            self.type = "base_collection";
+
+            self.elements = [];
+
+            self.changed_element_names = [];
+
+            self.submit_action = @{
+
+                foreach(self.elements as element) {
+
+                    @element.submit_action();
+                }
+            };
+
+            self.reset_action = @{
+
+                foreach(self.elements as element) {
+
+                    @element.reset_action();
+                }
+            };
+
+            self.update_action = @{
+
+                foreach(self.elements as element) {
+
+                    @element.update_action();
+                }
+            };
+
+            self.fetch = @(val data) {
+
+                foreach(self.elements as element) {
+
+                    @element.fetch(data);
+                }
+            };
+
+            self.filter = @{
+
+                foreach(self.elements as element) {
+
+                    @element.filter();
+                }
+            };
+
+            self.validate = @{
+
+                is_valid = TRUE;
+
+                foreach(self.elements as name => element) {
+
+                    is_valid = is_valid && @element.validate();
+                }
+
+                return is_valid;
+            };
+
+            self.add_element = @(val element_name, val element_source) {
+
+                self.elements[element_name] = ML::New(@element_source(self, element_name));
+            };
+
+            self.remove_element = @(val element_name) {
+
+                UnSet(self.elements[element_name]);
+            };
+
+            self.output = @(opt params = []) {
+
+                params.inherit = params.inherit ?? [];
+                params.elements = params.elements ?? [];
+
+                child_element_outputs = [];
+                foreach(self.elements as child_element_name => child_element) {
+
+                    if(@child_element.visible()) {
+
+                        child_element_outputs[child_element_name] = @child_element.output(
+                            ArrayMerge(
+                                params.inherit ?? [],
+                                params.elements[child_element_name] ?? []
+                            )
+                        );
+                    }
+                }
+
+                UnSet(params.elements);
+                UnSet(params.inherit);
+
+                return [
+                    .type => self.type,
+                    .data => [
+                        .errors => self.errors
+                    ],
+                    .params => params,
+                    .elements => child_element_outputs
+                ];
+            };
+        }
+    ];
+}
+
+
+
+function ElementCollection(val elements) {
+
+    return @(ref form, val element_name) {
+
+        return [
+            .new => @( ::BaseCollection() ),
+            .bind => @(ref self, val parent) {
+
+                self.type = "element_collection";
+
+                self.name = element_name;
+
+                foreach(elements as child_element_name => child_element_source) {
+
+                    self.elements[child_element_name] = ML::New(@child_element_source(form, child_element_name));
+                }
+
+                self.output = @(opt params = []){
+
+                    params.inherit.form_id = params.form_id;
+
+                    return @parent.output(params);
+                };
+
+            }
+        ];
+    };
+}
+
+
+
+function Fieldset(val elements) {
+
+    return @(ref form, val element_name) {
+
+        return [
+            .new => @{
+
+                element_collection_constructor = ::ElementCollection(elements);
+
+                return @element_collection_constructor(form, element_name);
+            },
+            .bind => @(ref self, val parent) {
+
+                self.type = "fieldset";
+
+                self.output = @(opt params = []){
+
+                    params.fieldset_id = params.id ?? GenerateUniqueId("fs_");
+                    params.inherit.fieldset_id = params.fieldset_id;
+
+                    return @parent.output(params);
+                };
+            }
+        ];
+    };
+}
+
+
+
+function MakeForm(val elements, opt initialize = FALSE) {
+
+    form = FALSE;
+    form = ML::New([
+        .new => @( ::BaseCollection() ),
+        .bind => @(ref self, val parent) {
+
+            self.type = "form";
+
+            foreach(elements as element_name => element_source) {
+
+                self.elements[element_name] = ML::New(@element_source(form, element_name));
+            }
+
+            self.ids_to_grab = [];
+
+            self.changed_element_names = [];
+
+            self.submit_action = @{
+
+                self.changed_element_names = [];
+
+                @self.fetch();
+                @self.filter();
+
+                if(@self.validate()) {
+
+                    foreach(self.elements as element) {
+
+                        @element.submit_action();
+                    }
+
+                    return TRUE;
+                }
+                else {
+
+                    return FALSE;
+                }
+            };
+
+            self.fetch = @{
+
+                post_data = WA::GetRequestData("post");
+                @parent.fetch(post_data);
+            };
+
+            self.output = @(opt params = []){
+
+                params.form_id = params.form_id ?? GenerateUniqueId("f_");
+                params.inherit.form_id = params.form_id;
+
+                return @parent.output(params);
+            };
+        }
+    ]);
+
+    @initialize(form);
+
+    return form;
+}
+
+
+
+function GetFormElement(val form, val element_name) {
+
+    return form.elements[element_name];
+}
+
+
+
+function AddFormElement(val form, val element_name, val element) {
+
+    @form.add_element(element_name, element);
+}
+
+
+
+function RemoveFormElement(val form, val element_name) {
+
+    @form.remove_element(element_name);
+}
+
+
+
+function Form(val form, val renderer) {
+
+    return @renderer(form);
+}
+
+
+
+function MakeFormHelperThread(val thread_closure) {
+
+    form_helper_thread_name = CurrentMuffin::MakeHelperThread(@(val contexts) {
+
+        @thread_closure(contexts);
+    });
+
+    return form_helper_thread_name;
+}
+
+
+
+function OutputFormHelperThreadJsonResponse(val response, opt headers = [], opt http_code = 200) {
+
+    response = JsonEncode(response);
+    headers["Content-type"] = "application/json";
+
+    CurrentFlapjack::Output(response, headers, http_code);
+}
+
+
+
+function AddDefaultsToArrayKey(ref target_array, val target_key, val default_values) {
+
+    if (IsSet(target_array[target_key])) {
+
+        values = target_array[target_key];
+        foreach(default_values as name => default_value) {
+
+            values[name] = values[name] ?? default_value;
+        }
+    }
+    else {
+
+        values = default_values;
+    }
+
+    target_array[target_key] = values;
+}
+
+
+
+function AddDefaults(ref target_array, val default_values) {
+
+    foreach(default_values as name => default_value) {
+
+        target_array[name] = target_array[name] ?? default_value;
+    }
+}
+
+
+
+function AddDefaultsRecursive(ref target_array, val defaults_array) {
+
+    foreach (defaults_array as name => default_value) {
+
+        if (IsSet(target_array[name])) {
+
+            if (
+                (IsArray(target_array[name]) && IsArray(default_value))
+                &&
+                (!IsClosure(target_array[name]) && !IsClosure(default_value))
+            ) {
+
+                ::AddDefaultsRecursive(target_array[name], default_value);
+            }
+        }
+        else {
+
+            target_array[name] = default_value;
+        }
+    }
+}
+
+
+
+function MakeDefaultRenderer(
+    val form_element_types_options_source,
+    val resources_source,
+    opt form_options = [],
+    opt types_options = FALSE
+) {
+
+    return @(val form) {
+
+        types_options = @form_element_types_options_source(types_options);
+
+        full_params_builder = FALSE;
+        full_params_builder = @(val element, val options) {
+
+            element_params = options.params ?? [];
+            element_type_options = types_options[element.type] ?? [];
+
+            ::AddDefaultsRecursive(element_params, element_type_options.params ?? []);
+
+            if(IsSet(element.elements)) {
+
+                options.elements = options.elements ?? [];
+
+                element_params.elements = [];
+                foreach(element.elements as child_element_name => child_element) {
+                    element_params.elements[child_element_name] = @full_params_builder(
+                        child_element,
+                        options.elements[child_element_name] ?? []
+                    );
+                }
+            }
+
+            return element_params;
+        };
+
+        full_form_params = @full_params_builder(form, form_options);
+
+        form_output_data = @form.output(full_form_params);
+
+        form_output_data.resources = resources_source;
+
+        element_data_renderer = FALSE;
+        element_data_renderer = @(val data, val options) {
+
+            ::AddDefaultsRecursive(options, types_options[data.type] ?? []);
+
+            child_elements_data = data.elements ?? [];
+            child_elements_options = options.elements ?? [];
+
+            child_outputs = [];
+            foreach(child_elements_data as child_element_name => child_element_data) {
+                child_element_options = child_elements_options[child_element_name] ?? [];
+
+                child_element_options.inherited_wrapper = child_element_options.wrapper ?? (options.element_wrapper ?? FALSE);
+
+                child_outputs[child_element_name] = @element_data_renderer(
+                    child_element_data,
+                    child_element_options
+                );
+            }
+            data.elements = child_outputs;
+
+            parts = options.parts ?? [];
+            part_outputs = [];
+
+            foreach(parts as part_name => part_template) {
+                if(part_template) {
+                    part_outputs[part_name] = Output::IncludeTemplate(part_template, data);
+                }
+            }
+            data.parts = part_outputs;
+
+            if (options.template ?? FALSE) {
+                result = Output::IncludeTemplate(options.template, data);
+                wrapper = options.wrapper ?? options.inherited_wrapper ?? FALSE;
+                if (wrapper) {
+                    data.element = result;
+                    result = Output::IncludeTemplate(wrapper, data);
+                }
+            }
+            else {
+                result = data;
+            }
+
+            return result;
+        };
+
+        return @element_data_renderer(form_output_data, form_options);
+    };
+}

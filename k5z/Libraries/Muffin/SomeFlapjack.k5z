@@ -1,0 +1,98 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library SomeFlapjack;
+
+
+
+import WebApplication as WA from "SystemLibraries";
+import CurrentThread, Exchange;
+
+
+
+function Debug(val p1, val p2, opt suffix = "") {
+
+    //MaybeDebug("muffin.some_flapjack" .. suffix, p1, p2);
+    Debug(p1, p2);
+}
+
+
+
+function Error(val p1, val p2, opt suffix = "") {
+
+    ::Debug(suffix, p1, p2);
+
+    Error(
+        ((p1 && IsScalar(p1)) ? p1 : "")
+        ..
+        ((p2 && IsScalar(p2)) ? ": " .. p2 : "")
+    );
+}
+
+
+
+function Make(val thread_closure) {
+
+    return CurrentThread::DoWithContexts(@(ref caller_contexts) {
+
+        flapjack_name = MakeThread(@{
+
+            CurrentThread::RegisterContextRef("kitchen", caller_contexts.kitchen);
+            CurrentThread::RegisterContextRef("machine", caller_contexts.machine);
+            CurrentThread::RegisterContextRef("exchange", caller_contexts.exchange);
+
+            if(caller_contexts.muffin ?? FALSE) {
+
+                CurrentThread::RegisterContextRef("muffin", caller_contexts.muffin);
+            }
+
+            CurrentThread::DoWithContexts(@(ref contexts) {
+
+                SwitchToPreviousThread();
+
+                @thread_closure(contexts);
+            });
+        });
+
+        SwitchToThread(flapjack_name);
+
+        LinkToThisThread(flapjack_name);
+
+        return flapjack_name;
+    });
+}
+
+
+
+function GetUrl(val flapjack_name, opt params = []) {
+
+    params.f = flapjack_name;
+
+    return  WA::GetProgramUrl(params);
+}
+
+
+
+function IsActive(val flapjack_name) {
+
+    return ThreadExists(flapjack_name);
+}
+
+
+
+function AssertIsActive(val flapjack_name) {
+
+    if(!::IsActive(flapjack_name)) {
+
+        ::Error("Failed to assert flapjack " .. flapjack_name .. " is active", "SomeFlapjack::AsssertIsActive");
+    }
+}
+
+
+
+function SwitchTo(val flapjack_name) {
+
+    ::AssertIsActive(flapjack_name);
+
+    return SwitchToThread(flapjack_name);
+}

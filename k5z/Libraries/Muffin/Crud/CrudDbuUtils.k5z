@@ -1,0 +1,52 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library CrudDbuUtils;
+
+
+
+import Dbu from "SystemLibraries";
+
+
+
+function Debug(val p1, val p2, opt suffix = "") {
+
+    MaybeDebug("muffin.crud.dbuutils" .. suffix, p1, p2);
+}
+
+
+
+function MakeAllItemsSource(val model_name) {
+
+    return @(val list_state) {
+
+        model = Dbu::GetModel(model_name);
+
+        if(list_state.column_sort_orders ?? FALSE) {
+
+            sort_order_sql = [];
+            foreach(list_state.column_sort_orders as column_name => order) {
+
+                if(order != "") {
+
+                    sort_order_sql[] = column_name .. " " .. order;
+                }
+            }
+            sort_order_sql = ArrayJoin(", ", sort_order_sql);
+
+            extra = (sort_order_sql != "" ? "ORDER BY " .. sort_order_sql .. " " : "") ..
+            " LIMIT " .. list_state.current_page_size ..
+            " OFFSET " .. ((list_state.current_page_number - 1) * list_state.current_page_size);
+        }
+        else {
+
+            extra = "";
+        }
+
+        sql = "SELECT * FROM " .. model.table_name .. " " .. extra;
+
+        //::Debug(sql, "CrudDbuUtils::MakeAllItemsSource sql");
+
+        return Dbu::SelectManyWithQuery(model, sql);
+    };
+}

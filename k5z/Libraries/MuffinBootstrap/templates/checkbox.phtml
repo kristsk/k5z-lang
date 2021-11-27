@@ -1,0 +1,11 @@
+<?php
+/* @var $variables */
+/* @var $params */
+/* @var $data */
+extract($variables); ?>
+<input type="checkbox"
+       id="<?= $params['id'] ?>"
+       name="<?= $data['name'] ?>"
+       value="1"
+       <?php if ($data['checked']): ?>checked="checked"<?php endif ?> />
+<?= $data['label'] ?>

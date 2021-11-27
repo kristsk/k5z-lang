@@ -1,0 +1,37 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library CurrentBuffer;
+
+
+
+import Buffer;
+
+
+
+include php "./CurrentBuffer.php" with {
+
+    function GetName() as "Buffer_GetCurrent";
+
+    function AddItem(val item) as "CurrentBuffer_AddItem"; //
+    function AddItems(val items) as "CurrentBuffer_AddItems"; //
+
+    function SetItems(val items) as "CurrentBuffer_SetItems"; //
+
+    function GetItems(opt default_items = FALSE) as "CurrentBuffer_GetItems"; //
+
+    function GetItemsAndTrash(opt default_items = FALSE) as "CurrentBuffer_GetItemsAndTrash"; //
+
+    function AddBuffer(val source_buffer_name) as "CurrentBuffer_AddBuffer"; //
+    function AddBufferAndTrash(val source_buffer_name) as "CurrentBuffer_AddBufferAndTrash"; //
+
+    function Trash() as "CurrentBuffer_Trash";
+}
+
+
+
+function SwitchToNext(opt prefix = "auto") {
+
+    return Buffer::SetCurrent("*", prefix);
+}
+

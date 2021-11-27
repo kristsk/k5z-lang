@@ -1,0 +1,22 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library Embedder;
+
+
+
+include php "../EmbeddedK5zApplication.php" with { }
+
+
+
+include php "Embedder.php" with {
+    function Load(val source_filename, opt configuration_data = []) as "Embedder_Load";
+    function Resume(ref embedded_program, val state, val request) as "Embedder_Resume";
+    function Start(ref embedded_program, val request) as "Embedder_Start";
+    function GetState(val embedded_program) as "Embedder_GetState";
+    function GetOutput(val embedded_program) as "Embedder_GetOutput";
+    function GetDebug(val embedded_program) as "Embedder_GetDebug";
+    function GetStats(val embedded_program) as "Embedder_GetStats";
+    function IsResumable(val embedded_program, val state) as "Embedder_IsResumable";
+}
+

@@ -1,0 +1,35 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+//=============================================================================================
+
+//---------------------------------------------------------------------------------------------
+group PHP;
+//---------------------------------------------------------------------------------------------
+
+library(name, program, library_imports, library_includes, function_declarations) ::= <<
+<if(program)>program<else>library<endif> <name>;
+<library_imports>
+>>
+
+library_imports(i) ::= <<
+#<i>#
+>>
+
+library_import(i) ::= <<
+>>
+
+
+library_includes() ::= <<
+INCLUDES!!!
+>>
+
+
+
+function_declarations() ::= <<
+DECLARATIONS!!!
+>>
+
+//---------------------------------------------------------------------------------------------
+
+//=============================================================================================

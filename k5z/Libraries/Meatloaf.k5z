@@ -1,0 +1,98 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library Meatloaf;
+
+
+
+function Debug(val p1, val p2, opt suffix = "") {
+
+    MaybeDebug("meatloaf" .. suffix, p1, p2);
+}
+
+
+
+function ref NewAugmentable(val constructor) {
+
+    return ::New(constructor, TRUE);
+}
+
+
+
+function ref New(val constructor, opt add_binder = FALSE) {
+
+    new_self = [];
+
+    binders = [];
+
+    if(IsSet(constructor.new)) {
+
+        binder_collector = TRUE;
+        binder_collector = @(ref s, val c) {
+
+            p = @c.new();
+            if(IsSet(p.new)) {
+                @binder_collector(s, p);
+                binders[] = p.bind;
+            }
+            else {
+                binders[] = p;
+            }
+        };
+
+        @binder_collector(new_self, constructor);
+    }
+
+    binders[] = IsSet(constructor.bind)
+        ? constructor.bind
+        : constructor;
+
+    if(add_binder) {
+
+        self_binder = @(ref self) {
+            foreach(binders as some_binder) {
+                @some_binder(self, self);
+            }
+        };
+
+        @self_binder(new_self);
+        new_self.___binder = self_binder;
+    }
+    else {
+        foreach(binders as binder) {
+            @binder(new_self, new_self);
+        }
+    }
+
+    return new_self;
+}
+
+
+
+function ref Augment(val base, val augment_consturctor) {
+
+    new_self = [];
+
+    binder = TRUE;
+    binder = @(ref self) {
+
+        if(IsSet(base.___binder)) {
+            @base.___binder(self);
+        }
+
+        if(IsSet(augment_consturctor.bind)) {
+            @augment_consturctor.bind(self, self);
+        }
+        else {
+            @augment_consturctor(self, self);
+        }
+
+        if(IsSet(base.___binder)) {
+            self.___binder = binder;
+        }
+    };
+
+    @binder(new_self);
+
+    return new_self;
+}

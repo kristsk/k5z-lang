@@ -1,0 +1,29 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library WebApplication;
+
+
+
+include php "WebApplication.php" with {
+
+    dirty function Output(val content, opt headers = [], opt code = 200) as "WebApplication_Output";
+    dirty function OutputArray(val array, opt headers = [], opt code = 200) as "WebApplication_OutputArray";
+    dirty function OutputBuffer(val buffer, opt headers = [], opt code = 200) as "WebApplication_OutputBuffer";
+
+    function GetRequestData(opt method = FALSE, opt name = FALSE, opt default_value = FALSE) as "WebApplication_GetRequestData";
+    function ClearGlobals(opt method = FALSE, opt names = FALSE) as "WebApplication_ClearGlobals";
+
+    function SetCookie(val key, val value, opt expire = 0) as "WebApplication_SetCookie";
+    function GetCookie(val key, opt default_value = FALSE) as "WebApplication_GetCookie";
+
+    function SetResumerThread(val thread_name) as "WebApplication_SetResumerThreadName";
+    function GetResumerThread() as "WebApplication_GetResumerThreadName";
+
+    function Restart() as "WebApplication_Restart";
+    function Terminate() as "WebApplication_Terminate";
+
+    function GetProgramUrl(val query_data) as "WebApplication_GetProgramUrl";
+
+    function GetStats() as "WebApplication_GetStats";
+}

@@ -1,0 +1,338 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library SomeMuffin;
+
+
+
+import Buffer as B, CurrentBuffer as CB from "SystemLibraries";
+
+import SomeThread, CurrentThread, Output, Exchange, Kitchen;
+
+
+
+function Debug(val p1, val p2, opt suffix = "") {
+
+    MaybeDebug("muffin.some_muffin" .. suffix, p1, p2);
+}
+
+
+
+function Error(val p1, val p2, opt suffix = "") {
+
+    ::Debug(suffix, p1, p2);
+
+    Error(
+        ((p1 && IsScalar(p1)) ? p1 : "")
+        ..
+        ((p2 && IsScalar(p2)) ? ": " .. p2 : "")
+    );
+}
+
+
+function Make(val start_closure) {
+
+    starter_thread_name = CurrentThreadName();
+
+    muffin_name = CurrentThread::DoWithContexts(@(ref maker_contexts) {
+
+        return MakeThread(@{
+
+            CurrentThread::RegisterContextRef("machine", maker_contexts.machine);
+
+            CurrentThread::RegisterContext("muffin", [
+                .name => FALSE,
+                .return_actions => [],
+                .container_present => FALSE
+            ]);
+
+            CurrentThread::RegisterContext("dialog");
+
+            CurrentThread::DoWithContexts(@(ref contexts) {
+
+                contexts.muffin.name = CurrentThreadName();
+
+                Kitchen::RegisterMuffin(contexts.machine.name, contexts.muffin.name);
+
+                @start_closure(contexts);
+
+                closure = SwitchToThread(starter_thread_name);
+
+                while(TRUE) {
+
+                    if(IsClosure(closure)) {
+
+                        closure = @closure(contexts);
+                    }
+                    else {
+
+                        ::Error(
+                            [.closure => closure, .previous_thread_name => PreviousThreadName()],
+                            "Muffin loop received non-closure, now what?"
+                        );
+                    }
+                }
+            });
+        });
+    });
+
+    SwitchToThread(muffin_name);
+
+    return muffin_name;
+}
+
+
+
+function MakeWith(val content_source, val frame_source) {
+
+    return ::Make(
+        @(ref contexts) {
+
+            contexts.kitchen.muffins[contexts.muffin.name].content_source = content_source;
+            contexts.kitchen.muffins[contexts.muffin.name].frame_source = frame_source;
+        }
+    );
+}
+
+
+
+function MakeWithSource(val content_source) {
+
+    return ::MakeWith(
+        content_source: content_source,
+        frame_source: @(val mode, val current_content_source) {
+
+            @current_content_source(mode);
+        }
+    );
+}
+
+
+
+function IsActive(val muffin_name) {
+
+    if(ThreadExists(muffin_name) == FALSE) {
+
+        return FALSE;
+    }
+
+    return SomeThread::DoWithContexts(muffin_name, @(ref contexts) {
+
+        return contexts.kitchen.muffins[muffin_name].terminated == FALSE;
+    });
+}
+
+
+
+function AssertIsActive(val muffin_name) {
+
+    if(!::IsActive(muffin_name)) {
+
+        ::Error("Failed to assert muffin " .. muffin_name .. " is active", "SomeMuffin::AsssertIsActive");
+    }
+}
+
+
+
+function SwitchToWithClosure(val muffin_name, val closure) {
+
+    ::AssertIsActive(muffin_name);
+
+    return SwitchToThread(muffin_name, closure);
+}
+
+
+
+function RenderToBuffer(val muffin_name, val mode) {
+
+    ::AssertIsActive(muffin_name);
+
+    return ::DoWithContexts(muffin_name, @(ref kitchen_context, ref muffin_context, ref all_contexts) {
+
+        output_buffer = B::SetNextForCurrentThread();
+
+        Kitchen::WithMuffinSources(muffin_name, @(val frame_source, val content_source) {
+
+            @frame_source(mode, content_source, all_contexts);
+        });
+
+        muffin_context.return_actions = [];
+
+        Output::ProcessBufferItems(output_buffer, @(val buffer_item) {
+
+            @buffer_item(muffin_context, all_contexts);
+        });
+
+        return output_buffer;
+    });
+}
+
+
+
+function CleanupHelperThreads(val muffin_name) {
+
+    SomeThread::DoWithContexts(muffin_name, @(ref contexts) {
+
+        foreach(contexts.kitchen.muffins[muffin_name].helper_thread_names as helper_thread_name) {
+
+            TerminateThread(helper_thread_name);
+        }
+    });
+}
+
+
+
+function SetContentSource(val muffin_name, val content_source) {
+
+    SomeThread::DoWithContexts(muffin_name, @(ref contexts) {
+
+        contexts.kitchen.muffins[contexts.muffin.name].content_source = content_source;
+    });
+}
+
+
+
+function SetFrameSource(val muffin_name, val frame_source) {
+
+    SomeThread::DoWithContexts(muffin_name, @(ref contexts) {
+
+        contexts.kitchen.muffins[contexts.muffin.name].frame_source = frame_source;
+    });
+}
+
+
+
+function GetMuffinContainerName(val muffin_name) {
+
+    return muffin_name;
+}
+
+
+
+function UpdateContainer(val muffin_name) {
+
+    SomeThread::DoWithContexts(muffin_name, @(ref contexts) {
+
+        Exchange::AddIncrementalResponseOperation(contexts, "set_css", [
+            .content => B::DoPreservingCurrent(@{
+
+                CB::SwitchToNext();
+
+                Output::Css();
+                items = CB::GetItemsAndTrash();
+                foreach(items as item) {
+                    @item();
+                }
+            })
+        ]);
+
+        Exchange::AddIncrementalResponseOperation(contexts, "set_css_links", [
+            .content => B::DoPreservingCurrent(@{
+
+                CB::SwitchToNext();
+                Output::CssLinks();
+                items = CB::GetItemsAndTrash();
+                foreach(items as item) {
+                    @item();
+                }
+            })
+        ]);
+
+        Exchange::AddIncrementalResponseOperation(contexts, "update_container", [
+          .container_name => ::GetMuffinContainerName(muffin_name),
+          .content => ::RenderToBuffer(contexts.muffin.name, "update_container")
+        ]);
+    });
+}
+
+
+
+function InsertContainer(val muffin_name, val anchor_selector) {
+
+    SomeThread::DoWithContexts(muffin_name, @(ref contexts) {
+
+        contexts.muffin.container_present = TRUE;
+
+        Exchange::AddIncrementalResponseOperation(contexts, "insert_container", [
+            .selector => anchor_selector,
+            .content => ::RenderToBuffer(contexts.muffin.name, "insert_container")
+        ]);
+    });
+}
+
+
+
+function RemoveContainer(val muffin_name) {
+
+    SomeThread::DoWithContexts(muffin_name, @(ref contexts) {
+
+        contexts.muffin.container_present = FALSE;
+
+        Exchange::AddIncrementalResponseOperation(contexts, "remove_container", [
+            .container_name => ::GetMuffinContainerName(muffin_name),
+            .content => ::RenderToBuffer(contexts.muffin.name, "remove_container")
+        ]);
+    });
+}
+
+
+
+function Terminate(val muffin_name) {
+
+    SomeThread::DoWithContexts(muffin_name, @(ref contexts) {
+
+        SomeMuffin::RemoveContainer(muffin_name);
+
+        contexts.kitchen.muffins[muffin_name].terminated = TRUE;
+        UnSet(contexts.kitchen.machines[contexts.machine.name].muffins[muffin_name]);
+    });
+}
+
+
+
+function MoveToOtherMachine(val muffin_name, val other_machine_name) {
+
+    SomeThread::DoWithContexts(muffin_name, @(ref contexts) {
+
+        UnSet(contexts.kitchen.machines[contexts.machine.name].muffins[muffin_name]);
+    });
+
+    SomeThread::DoWithContexts(other_machine_name, @(ref contexts) {
+
+        contexts.kitchen.machines[contexts.machine.name].muffins[muffin_name] = muffin_name;
+    });
+}
+
+
+
+function MakeDefaultFrameSource(opt extra_class = FALSE) {
+
+    return @(val mode, val output_source, ref contexts ) {
+
+        Output::HtmlTag(
+            "div",
+            [
+                "class" => extra_class .. " container",
+                "data-container-name" => contexts.muffin.name
+            ],
+            @( @output_source(mode) )
+        );
+    };
+}
+
+
+function Update(val muffin_name) {
+
+    
+
+}
+
+
+
+function DoWithContexts(val muffin_name, val closure) {
+
+    return SomeThread::DoWithContexts(muffin_name, @(ref contexts) {
+
+        return @closure(contexts.kitchen, contexts.muffin, contexts);
+    });
+}

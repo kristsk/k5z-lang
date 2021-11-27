@@ -1,0 +1,46 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library Basic;
+
+
+
+import CurrentMuffin, Output from "Libraries/Muffin";
+
+
+
+include phtml "../templates/dialogs/ok.phtml" as function OkTemplate(val variables);
+include phtml "../templates/dialogs/yesno.phtml" as function YesNoTemplate(val variables);
+
+
+
+function Okay(val message) {
+
+    return CurrentMuffin::StartDialogWithSource(@{
+
+        Output::Template(
+            ::OkTemplate,
+            [
+               .message => message,
+               .ok_url => @( Output::ActionUrl(@( CurrentMuffin::EndDialog(TRUE) )) )
+            ]
+         );
+    });
+}
+
+
+
+function YesNo(val question, opt yes_value = TRUE, opt no_value = FALSE) {
+
+    return CurrentMuffin::StartDialogWithSource(@{
+
+        Output::Template(
+            ::YesNoTemplate,
+            [
+               .question => question,
+               .yes_url => @( Output::ActionUrl(@( CurrentMuffin::EndDialog(yes_value) )) ),
+               .no_url => @( Output::ActionUrl(@( CurrentMuffin::EndDialog(no_value) )) )
+            ]
+         );
+    });
+}

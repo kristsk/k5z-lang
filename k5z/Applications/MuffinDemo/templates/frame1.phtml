@@ -1,0 +1,16 @@
+<?php
+/* @var $variables */
+/* @var $muffin_name */
+/* @var $title */
+/* @var $mode */
+/* @var $content */
+extract($variables); ?>
+
+<div class="calculator-frame container float-left" data-container-name="<?= $muffin_name ?>">
+
+    <h1>CCC <?= $title ?></h1>
+
+    <b><?= $mode ?> (<?= $muffin_name ?>)</b>
+
+    <?= $content ?>
+</div>

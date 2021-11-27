@@ -1,0 +1,20 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library CurrentFlapjack;
+
+
+
+import CurrentThread, Kitchen, Exchange from "Libraries/Muffin";
+
+
+
+function Output(val body, opt headers = [], opt http_code = 200) {
+
+    CurrentThread::DoWithContexts(@(ref contexts) {
+
+        Exchange::SetResponseContent(contexts, body, headers, http_code);
+    });
+
+    Kitchen::SwitchTo();
+}

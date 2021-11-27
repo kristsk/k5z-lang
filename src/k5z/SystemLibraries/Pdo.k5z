@@ -1,0 +1,22 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library Pdo;
+
+
+
+include php "Pdo.php" with {
+    function Connect(val host, val user, val password) as "Pdo_Connect";
+    function ConnectFromConfigurationItem(val name) as "Pdo_ConnectFromConfigurationItem";
+    function Disconnect(opt connection = FALSE) as "Pdo_Disconnect";
+    function Query(val query, opt params = [], opt connection = FALSE) as "Pdo_Query";
+    function FreeResult(val query_result) as "Pdo_FreeResult";
+    function FetchAssociativeArray(val query_result) as "Pdo_FetchAssociativeArray";
+    function LastInsertId(opt connection = FALSE) as "Pdo_LastInsertId";
+    function NumberOfRows(val query_result) as "Pdo_NumberOfRows";
+    function DoSelect(val query, opt params = [], opt connection = TRUE) as "Pdo_DoSelect";
+    function DoSelectRow(val query, opt params = [], opt connection = TRUE) as "Pdo_DoSelectRow";
+    function DoSelectField(val query, opt params = [], opt connection = TRUE) as "Pdo_DoSelectField";
+    function LastError(opt connection = FALSE) as "Pdo_LastError";
+    function ErrorOnFailure(val value) as "Pdo_ErrorOnFailure";
+}

@@ -1,0 +1,159 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library Core;
+
+
+
+include php "Core.php" with {
+
+    dirty function InvocateClosure() as "Core_InvocateClosure";
+    dirty function DirtyDummy() as "Core_DirtyDummy";
+    dirty function ThisClosure() as "Core_ThisClosure";
+    dirty function SwitchToThread(val thread_name, opt return_value = FALSE) as "Core_SwitchToThread";
+    dirty function SwitchToPreviousThread(opt return_value = FALSE) as "Core_SwitchToPreviousThread";
+    dirty function TerminateThisThreadAndSwitch(val thread_name, opt return_value = FALSE) as "Core_TerminateThisThreadAndSwitch";
+    dirty function TerminateThisThreadAndSwitchToPrevious(opt return_value = FALSE) as "Core_TerminateThisThreadAndSwitchToPrevious";
+    function TerminateThread(val thread_name) as "Core_TerminateThread";
+
+    function IsSet(val var) as "isset";
+    function UnSet(val var) as "unset";
+    function ArrayMerge(val array1, val array2) as "\\array_merge";
+    function ArrayUnshift(val array, val var) as "\\array_unshift";
+    function ArrayShift(val array) as "\\array_shift";
+    function ArrayDiff(val array1, val array2) as "\\array_diff";
+    function ArraySlice(val array1, val p1, opt p2 = FALSE) as "\\array_slice";
+    function ArrayCount(val array) as "\\count";
+    function ArrayNext(val array) as "\\next";
+    function ArrayFill(val start, val num, val value) as "\\array_fill";
+    function ArrayCombine(val keys, val values) as "\\array_combine";
+    function ArrayIntersect(val array1, val array2) as "\\array_intersect";
+    function ArrayIntersectKey(val array1, val array2) as "\\array_intersect_key";
+    function ArrayFlip(val array) as "\\array_flip";
+    function ArrayPop(val array) as "\\array_pop";
+    function ArrayPush(val array, val element) as "\\array_push";
+    function ArrayKeys(val array) as "\\array_keys";
+    function ArrayIsEmpty(val var) as "\\is_empty";
+    function ArrayJoin(val separators, val array) as "\\join";
+    function ArrayExplode(val separator, val string) as "\\explode";
+    function ArrayReset(val array) as "\\reset";
+    function ArrayReverse(val array) as "\\array_reverse";
+    function ArrayUnique(val array) as "\\array_unique";
+    function ArrayCurrentKey(val array) as "\\key";
+    function ArrayCurrentValue(val array) as "\\current";
+    function ArrayFilter(val array, val callback) as "\\array_filter";
+    function ArrayMax(val array) as "\\max";
+    function ArrayMin(val array) as "\\min";
+    function ArraySearch(val needle, val haystack, opt strict = FALSE) as "\\array_search";
+
+    function Max(val p1, val p2) as "\\max";
+    function Min(val p1, val p2) as "\\min";
+
+    function IsString(val test) as "\\is_string";
+    function IsArray(val array) as "\\is_array";
+    function IsScalar(val test) as "\\is_scalar";
+    function IsEmpty(val array) as "empty";
+    function NotEmpty(val array) as "not_empty";
+    function InArray(val needle, val haystack) as "\\in_array";
+    function UrlEncode(val url) as "\\urlencode";
+    function IntVal(val var) as "\\intval";
+    function StringVal(val var) as "\\strval";
+    function Range(val min, val max) as "\\range";
+    function Rand(val min, val max) as "\\rand";
+    function Date(val format, opt seed = FALSE) as "\\date";
+    function StrSubstring(val string, val start, opt length = FALSE, opt encoding = FALSE) as "\\mb_substr";
+    function StrLength(val string, opt encoding = FALSE) as "\\mb_strlen";
+    function StrReplace(val find, val replace, val where) as "\\str_replace";
+    function HtmlSpecialChars(val html) as "\\htmlspecialchars";
+    function JsonEncode(val data, opt options = 0) as "\\json_encode";
+    function JsonDecode(val data, opt as_array = FALSE) as "\\json_decode";
+    function Base64Encode(val data) as "\\base64_encode";
+    function Base64Decode(val data) as "\\base64_decode";
+    function Serialize(val data) as "\\serialize";
+    function Unserialize(val data) as "\\unserialize";
+    function FileGetContents(val filename) as "safe_file_get_contents";
+    function FilePutContents(val filename, val content) as "safe_file_put_contents";
+    function FileSize(val filename) as "\\filesize";
+    function HashMd5(val string) as "\\md5";
+
+    function FileCopy(val source, val destination) as "\\copy";
+    function FileExists(val filename) as "\\file_exists";
+
+    function Exec(val command, ref output, ref exit_code) as "\\exec";
+
+    function GzipEncode(val content) as "\\gzencode";
+    function GzipDecode(val content) as "\\gzdecode";
+    function GzipDeflate(val content) as "\\gzdeflate";
+    function GzipInflate(val content) as "\\gzinflate";
+
+    function Trim(val string) as "\\trim";
+    function StrRepeat(val input, val multiplier) as "\\str_repeat";
+    function StrToLower(val string) as "\\strtolower";
+    function StrToUpper(val string) as "\\strtoupper";
+    function SubstringPosition(val haystack, val needle, opt offset = 0) as "\\strpos";
+
+    function GenerateUniqueId(opt prefix = "", opt more_entropy = FALSE) as "\\uniqid";
+
+    function IsClosure(val closure) as "Core_IsClosure";
+    function IsPlainArray(val array) as "Core_IsPlainArray";
+
+    function MakeThread(val closure, opt properties = []) as "Core_MakeThread";
+    function MakeNamedThread(val thread_name, val closure, opt properties = []) as "Core_MakeNamedThread";
+
+    function ThreadExists(val thread_name) as "___ThreadExists";
+
+    function LinkToThisThread(val other_thread_name) as "Core_LinkToThisThread";
+    function UnlinkFromThisThread(val other_thread_name) as "Core_UnlinkFromThisThread";
+
+    function CurrentThreadName() as "___GetCurrentThreadName";
+    function PreviousThreadName() as "Core_PreviousThreadName";
+    function SetPreviousThreadName(val thread_name) as "Core_SetPreviousThreadName";
+
+    function SetErrorThread(val thread_name) as "___SetErrorThreadName";
+    function GetErrorThread() as "___GetErrorThreadName";
+
+    function SetThreadProperty(val thread_name, val name, val value) as "Core_SetThreadProperty";
+    function UnSetThreadProperty(val thread_name, val name) as "Core_UnSetThreadProperty";
+    function GetThreadProperty(val thread_name, val name, val default_value) as "Core_GetThreadProperty";
+    function SetCurrentThreadProperty(val name, val value) as "Core_SetCurrentThreadProperty";
+    function UnSetCurrentThreadProperty(val name) as "Core_UnSetCurrentThreadProperty";
+    function GetCurrentThreadProperty(val name, val default_value) as "Core_GetCurrentThreadProperty";
+    function GetAllThreadProperties(val name) as "Core_GetAllThreadProperties";
+
+    function ref GetThreadPropertyRef(val thread_name, val name, val default_value) as "Core_GetThreadPropertyRef";
+    function ref GetCurrentThreadPropertyRef(val name, val default_value) as "Core_GetCurrentThreadPropertyRef";
+
+    function RawDebug(val message) as "Core_RawDebug";
+    function Debug(val message, opt title = FALSE) as "Core_Debug";
+    function MaybeDebug(val context, val message, opt title = FALSE) as "Core_MaybeDebug";
+    function Die() as "Core_Die";
+
+    function ReadConfigurationDataFile() as "Core_ReadConfigurationDataFile";
+    function GetConfigurationItem(val name, opt default_value = FALSE) as "Core_GetConfigurationItem";
+
+    function Error(val message) as "Core_Error";
+
+    function DateTimeCreate(opt when = "now") as "\\date_create";
+    function DateTimeFormat(val datetime, val format) as "\\date_format";
+
+    function SortArrayByIntegerKey(val arary, val key) as "sort_array_by_integer_valued_key";
+
+    function SortAssociativeArray(ref array) as "\\asort";
+    function SortArrayByKey(ref array) as "\\ksort";
+
+    function GenerateUuidV4() as "generate_uuid_v4";
+
+    function RoundCeil(val number) as "\\ceil";
+    function RoundFloor(val number) as "\\floor";
+    function Round(val number, opt precision = 0, opt mode = 1) as "\\round";
+
+    function IsNumeric(val number) as "\\is_numeric";
+
+    function FMod(val x, val y) as "\\fmod";
+
+    function FloatVal(val float) as "\\floatval";
+
+    function PregMatchRef(val pattern , val subject, ref matches, opt flags = 0, opt offset = 0) as "\\preg_match";
+
+    function PregMatch(val pattern, val subject) as "\\preg_match";
+}

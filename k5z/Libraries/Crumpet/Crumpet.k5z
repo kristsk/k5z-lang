@@ -1,0 +1,487 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library Crumpet;
+
+
+
+import Pdo from "SystemLibraries";
+import Meatloaf as ML from "Libraries";
+import Buffer as B from "SystemLibraries";
+
+
+
+function Debug(val p1, val p2, opt suffix = "") {
+
+    MaybeDebug("dbu" .. suffix, p1, p2);
+}
+
+
+
+function ref GetCrumpetContext() {
+
+    default_context = [.sources => [], .buffers => [], .error_handler => FALSE];
+
+    crumpet_context =& GetThreadPropertyRef("main", "crumpet-context", default_context);
+
+    return crumpet_context;
+}
+
+
+
+function SetErrorHandler(val error_handler) {
+
+    crumpet_context =& ::GetCrumpetContext();
+
+    crumpet_context.error_handler = error_handler;
+}
+
+
+
+function RegisterModel(val model_name, val model_source) {
+
+    crumpet_context =& ::GetCrumpetContext();
+
+    crumpet_context.sources[model_name] = model_source;
+}
+
+
+
+function GetModel(val model_name_or_model) {
+
+    if(IsArray(model_name_or_model)) {
+
+        return model_name_or_model;
+    }
+    else {
+
+        return ::GetRegisteredModel(model_name_or_model);
+    }
+}
+
+
+
+function GetRegisteredModel(val model_name) {
+
+    crumpet_context =& ::GetCrumpetContext();
+
+    if(IsSet(crumpet_context.buffers[model_name])) {
+
+        model = B::GetItems(crumpet_context.buffers[model_name]);
+
+        if(model == FALSE) {
+
+            UnSet(crumpet_context.buffers[model_name]);
+            model = ::GetRegisteredModel(model_name);
+        }
+
+        return model;
+    }
+    else if(IsSet(crumpet_context.sources[model_name])) {
+
+        model = @crumpet_context.sources[model_name]();
+
+        model_buffer = GenerateUniqueId("dbum_");
+        crumpet_context.buffers[model_name] = model_buffer;
+
+        B::SetItems(model, model_buffer);
+
+        return model;
+    }
+    else {
+
+        Error("Model '" .. model_name .. "' is not registered.");
+    }
+}
+
+
+
+function MakeModel(val table_name, val fields, opt pdo = FALSE) {
+
+    return ML::New(@(ref self) {
+
+        self.table_name = table_name;
+        self.fields = fields;
+
+        self.default_values = [];
+        self.field_types = [];
+        self.pk_field_names = [];
+
+        self.tagged_fields = [];
+
+        self.pdo = pdo;
+
+        phase_handlers = [];
+
+        foreach(fields as field_name => field_properties) {
+
+            foreach(field_properties as field_property) {
+
+                made_field_property = ML::New(@field_property(self, field_name));
+
+                foreach(made_field_property.phases as phase_name => phase_handler) {
+
+                    phase_handlers[phase_name][] = phase_handler;
+                }
+            }
+        }
+
+        smart_bind = @(val handlers, val many_handler_handler) {
+
+            handler_count = ArrayCount(handlers);
+
+            if(handler_count == 0) {
+
+                return FALSE;
+            }
+            else if(handler_count == 1) {
+
+                return handlers[0];
+            }
+            else {
+
+                return many_handler_handler;
+            }
+        };
+
+        self.for_where_by_pk = @smart_bind(
+            phase_handlers.for_where_by_pk,
+            @(val data, ref where) {
+
+                where = [
+                    .criteria => [],
+                    .params => []
+                ];
+
+                foreach(phase_handlers.for_where_by_pk as handler) {
+
+                    @handler(data, where);
+                }
+            }
+        );
+
+        self.for_where = @smart_bind(
+            phase_handlers.for_where,
+            @(val data, ref where) {
+
+                where = [
+                    .criteria => [],
+                    .params => []
+                ];
+
+                foreach(phase_handlers.for_where as handler) {
+
+                    @handler(data, where);
+                }
+            }
+        );
+
+        self.for_update = @smart_bind(
+            phase_handlers.for_update,
+            @(val data, ref update, opt fields_to_update = FALSE) {
+
+                update = [
+                    .fields_with_values => [],
+                    .params => []
+                ];
+
+                foreach(phase_handlers.for_update as handler) {
+
+                    @handler(data, update, fields_to_update);
+                }
+            }
+        );
+
+        self.after_select = @smart_bind(
+            phase_handlers.after_select,
+            @(val db_row, ref result_row) {
+
+                foreach(ArrayReverse(phase_handlers.after_select) as handler) {
+
+                    @handler(db_row, result_row);
+                }
+            }
+        );
+
+        self.for_insert = @smart_bind(
+            phase_handlers.for_insert,
+            @(val data, ref insert) {
+
+                foreach(ArrayReverse(phase_handlers.for_insert) as handler) {
+
+                    @handler(data, insert);
+                }
+            }
+        );
+
+        self.after_insert = @smart_bind(
+            phase_handlers.after_insert,
+            @(ref data) {
+
+                foreach(ArrayReverse(phase_handlers.after_insert) as handler) {
+
+                    @handler(data);
+                }
+            }
+        );
+
+        self.new = @smart_bind(
+            phase_handlers.new,
+            @(ref data, opt params = []) {
+
+                foreach(phase_handlers.new as handler) {
+
+                    @handler(data, params);
+                }
+            }
+        );
+
+        self.initialize = @smart_bind(
+            phase_handlers.initialize,
+            @(opt params = []) {
+
+                foreach(phase_handlers.initialize as handler) {
+
+                    @handler(params);
+                }
+            }
+        );
+    });
+}
+
+
+
+function FetchPkDataFromArray(val model, val array) {
+
+    model = ::GetModel(model);
+
+    data_out = [];
+
+    foreach(model.pk_field_names as pk_field_name) {
+
+        if(IsSet(array[pk_field_name])) {
+
+            data_out[pk_field_name] = array[pk_field_name];
+        }
+    }
+
+    //::Debug(model.pk_field_names, "PK FIELD NAMES");
+
+    return data_out;
+}
+
+
+
+function New(val model, opt params = []) {
+
+    model = ::GetModel(model);
+
+    new = [];
+
+    @model.new(new, params);
+
+    return new;
+}
+
+
+
+function Insert(val model, val data)  {
+
+    model = ::GetModel(model);
+
+    insert = [];
+    @model.for_insert(data, insert);
+
+    sql = "INSERT INTO `" .. model.table_name .. "` (" .. ArrayJoin(", ", insert.fields) ..") VALUES (" .. ArrayJoin(", ", insert.values).. ");";
+
+    Pdo::Query(sql, insert.params, model.pdo);
+
+    @model.after_insert(data);
+
+    //::Debug(data, "INSERT DATA");
+
+    return data;
+}
+
+
+
+function UpdateByPk(val model, val data, opt pk_data = FALSE, opt fields_to_update = FALSE) {
+
+    model = ::GetModel(model);
+
+    if(pk_data == FALSE) {
+
+        pk_data = data;
+    }
+
+    update = [];
+
+    //Debug(data, "UpdateByPk data");
+    //Debug(fields_to_update, "UpdateByPk fields_to_update");
+
+    @model.for_update(data, update, fields_to_update);
+
+    //Debug(update, "UpdateByPk update");
+
+    if(IsEmpty(update.fields_with_values)) {
+
+        return TRUE;
+    }
+
+    where_by_pk = [];
+    @model.for_where_by_pk(pk_data, where_by_pk);
+
+    sql = "UPDATE `" .. model.table_name ..  "` SET " .. ArrayJoin(", ", update.fields_with_values) .. " WHERE " .. ArrayJoin(" AND ", where_by_pk.criteria) .. ";";
+
+    params = ArrayMerge(update.params, where_by_pk.params);
+
+    //Debug([.sql => sql, .params => params], "UpdateByPk SQL");
+
+    return Pdo::Query(sql, params, model.pdo);
+}
+
+
+
+function Persist(val model, val data) {
+
+    model = ::GetModel(model);
+
+    pk_in_data = ::FetchPkDataFromArray(model, data);
+
+    if(ArrayCount(pk_in_data) == ArrayCount(model.pk_field_names)) {
+
+        result = ::UpdateByPk(model, data);
+    }
+    else {
+
+        result = ::Insert(model, data);
+    }
+
+    return result;
+}
+
+
+
+function DeleteByPK(val model, val data) {
+
+    model = ::GetModel(model);
+
+    where_by_pk = [];
+    @model.for_where_by_pk(data, where_by_pk);
+
+    //::Debug(where_by_pk, "DeleteByPK $where_by_pk");
+
+    sql = "DELETE FROM `" .. model.table_name .. "` WHERE " .. ArrayJoin(" AND ", where_by_pk.criteria) .. ";";
+
+    return Pdo::Query(sql, where_by_pk.params, model.pdo);
+}
+
+
+
+function SelectOneWithQuery(val model, val sql, opt criteria = []) {
+
+    params = [];
+
+    if(IsArray(criteria)) {
+
+        where = [];
+        @model.for_where(criteria, where);
+
+        if(IsSet(where.criteria) && NotEmpty(where.criteria)) {
+
+            sql = sql .. " WHERE" .. ArrayJoin(" AND ", where.criteria) .. " LIMIT 1;";
+        }
+
+        params = where.params;
+    }
+
+    row = Pdo::DoSelectRow(sql, params, model.pdo);
+
+    if(row != FALSE) {
+
+        @model.after_select(row, row);
+    }
+
+    return row;
+}
+
+
+
+function SelectManyWithQuery(val model, val sql, opt criteria = []) {
+
+    params = [];
+
+    if(IsArray(criteria)) {
+
+        where = [];
+        @model.for_where(criteria, where);
+
+        if(NotEmpty(where.criteria)) {
+
+            sql = sql .. " WHERE " .. ArrayJoin(" AND ", where.criteria);
+        }
+
+        params = where.params;
+    }
+
+    rows = Pdo::DoSelect(sql, params, model.pdo);
+
+    result = [];
+    foreach(rows as key => row) {
+
+        @model.after_select(row, row);
+        result[key] = row;
+    }
+
+    return result;
+}
+
+
+
+function SelectOneOrMany(val select_function, val model, val criteria, opt index_field_name = FALSE) {
+
+    select = "*";
+
+    if((index_field_name != FALSE) && IsSet(model.fields[index_field_name])) {
+
+        select = "`" .. model.table_name .. "." .. index_field_name .. "` as ___key, `" .. model.table_name .. "`.*";
+    }
+
+    sql = "SELECT " .. select .. " FROM `" .. model.table_name .. "`";
+
+    return @select_function(model, sql, criteria);
+}
+
+
+
+function SelectMany(val model, opt criteria = [], opt index_field_name = FALSE) {
+
+    model = ::GetModel(model);
+
+    return ::SelectOneOrMany(::SelectManyWithQuery, model, criteria, index_field_name);
+}
+
+
+
+function SelectOne(val model, val criteria) {
+
+    model = ::GetModel(model);
+
+    return ::SelectOneOrMany(::SelectOneWithQuery, model, criteria);
+}
+
+
+
+function SelectOneByPk(val model, val pk_data, opt default_value = FALSE) {
+
+    model = ::GetModel(model);
+
+    pk_data = ::FetchPkDataFromArray(model, pk_data);
+
+    if(ArrayCount(pk_data) != ArrayCount(model.pk_field_names)) {
+
+        return default_value;
+    }
+
+    return ::SelectOne(model, pk_data);
+}

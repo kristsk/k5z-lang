@@ -1,0 +1,9 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+
+library StandaloneWebApplication;
+
+
+
+include php "StandaloneWebApplication.php" with { }

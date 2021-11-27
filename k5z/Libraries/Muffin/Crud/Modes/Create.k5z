@@ -1,0 +1,71 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MITCreate;
+
+library Create;
+
+
+
+import Muffin, Output, Form from "Libraries/Muffin";
+import MuffinBootstrapUI as BSUI from "Libraries/MuffinBootstrap";
+import Crud from "Libraries/Muffin/Crud";
+
+
+
+include phtml "../../templates/crud/create.phtml" as function CreateTemplate(val variables);
+
+
+
+function CreateMode(val form_source, val action, opt template = FALSE) {
+
+    return @(ref contexts) {
+
+        contexts.muffin.create_item = @{
+
+            ::CreateItem(contexts);
+        };
+
+        contexts.muffin.modes.create = [
+            .form_source => form_source,
+            .action => action,
+            .template => template,
+
+            .process_list => @(val items, ref list) {
+
+                list.create_url = @( Output::ActionUrl(contexts.muffin.create_item) );
+            }
+        ];
+    };
+}
+
+
+
+function CreateItem(ref contexts) {
+
+    new_item = Crud::GetNewItem(contexts);
+
+    submit_action = @{
+
+        new_item = @contexts.muffin.modes.create.action(new_item);
+
+        return Muffin::EndDialog(new_item);
+    };
+
+
+    cancel_action = @{
+
+        return Muffin::EndDialog(FALSE);
+    };
+
+    form = @contexts.muffin.modes.create.form_source(new_item, submit_action);
+
+    return Muffin::DialogWithSource(@{
+
+        Output::Template(
+            contexts.muffin.modes.create.template ?: ::CreateTemplate,
+            [
+                .form => Form::Form(form, BSUI::FormRenderer()),
+                .cancel_url => @( Output::ActionUrl(cancel_action) )
+            ]
+        );
+    });
+}

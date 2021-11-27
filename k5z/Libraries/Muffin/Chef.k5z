@@ -1,0 +1,60 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library Chef;
+
+
+
+import SomeThread, CurrentThread;
+
+
+
+function Initialize() {
+
+    MakeNamedThread("chef-thread", @{
+
+        CurrentThread::RegisterContext("chef", [.items => []]);
+
+        CurrentThread::DoWithContexts(@(ref contexts) {
+
+            SwitchToPreviousThread();
+
+            while(TRUE) {
+
+                previous_thread_name = PreviousThreadName();
+
+                items = contexts.chef.items;
+                contexts.chef.items = [];
+
+                foreach(items as item) {
+
+                    @item();
+                }
+
+                if(ArrayEmpty(contexts.chef.items)) {
+
+                    SwitchToThread(previous_thread_name);
+                }
+            }
+        });
+    });
+
+    SwitchToThread("chef-thread");
+}
+
+
+
+function Add(val item) {
+
+    SomeThread::WithContexts("chef-thread", @(ref contexts) {
+
+        contexts.chef.items[] = item;
+    });
+}
+
+
+
+function Run() {
+
+    SwitchToThread("chef-thread");
+}

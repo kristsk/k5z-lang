@@ -1,0 +1,250 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library SortableList;
+
+
+
+import Muffin, Output from "Libraries/Muffin";
+import Crud from "Libraries/Muffin/Crud";
+
+import WebApplication as WA from "SystemLibraries";
+
+
+
+include phtml "../../templates/crud/sortable-list.phtml" as function SortableListTemplate(val variables);
+include phtml "../../templates/crud/sortable-list-table.phtml" as function SortableListTableTemplate(val variables);
+include phtml "../../templates/crud/sortable-list-pagination.phtml" as function SortableListPaginationTemplate(val variables);
+
+
+
+function SortableListMode(
+    val columns,
+    opt sort_orders = FALSE,
+    opt page_sizes = FALSE,
+    opt current_page_size = 15,
+    opt item_formatter = FALSE,
+    opt template = FALSE,
+    opt table_template = TRUE,
+    opt pagination_template = TRUE
+) {
+    return @(ref contexts) {
+
+        sort_orders = ::PrepareSortOrders(columns, sort_orders);
+        page_sizes = ::PreparePageSizes(page_sizes);
+
+        ::SetSortableListItemsSource(contexts);
+
+        contexts.muffin.modes.list = [
+            .template => template,
+            .table_template => table_template,
+            .pagination_template => pagination_template,
+            .process_list_item => @(val item, ref list_item) {
+
+                @item_formatter(item, list_item);
+            },
+            .process_list => @(val items, ref list) {
+
+                list.columns = columns;
+                list.sorting = ::GetSorting(contexts);
+                list.pagination = ::GetPagination(contexts);
+            },
+            .current_page_number => 1,
+            .current_page_size => current_page_size,
+            .page_sizes => page_sizes,
+            .column_sort_orders => sort_orders
+        ];
+    };
+}
+
+
+
+function GetSorting(ref contexts) {
+
+    list_state =& contexts.muffin.modes.list;
+
+    sorting = [];
+
+    sequences = [
+        "ASC" => "DESC",
+        "DESC" => "",
+        "" => "ASC"
+    ];
+
+    foreach(list_state.column_sort_orders as column_name => current_sort_order) {
+
+        order_change_action = @{
+
+            list_state.column_sort_orders[$column_name] = sequences[$current_sort_order];
+            list_state.current_page_number = 1;
+        };
+
+        sorting[column_name] = [
+            .current_order => current_sort_order,
+            .next_order_url => @( Output::ActionUrl($order_change_action) )
+        ];
+    }
+
+    return sorting;
+}
+
+
+
+function GetPagination(ref contexts) {
+
+    list_state =& contexts.muffin.modes.list;
+
+    set_page_size_url = Output::PrepareActionUrl(@{
+         list_state.current_page_number = 1;
+         list_state.current_page_size = WA::GetRequestData("get", "ps");
+     });
+
+    page_size_urls = [];
+    foreach(list_state.page_sizes as page_size) {
+
+        if(page_size != list_state.current_page_size) {
+
+            page_size_urls[page_size] = @( Output::PreparedActionUrl(set_page_size_url, ["ps" => $page_size]) );
+        }
+        else {
+
+            page_size_urls[page_size] = FALSE;
+        }
+    }
+
+    row_count = Crud::GetItemCount(contexts, list_state);
+
+    page_count = RoundCeil(row_count / list_state.current_page_size);
+
+    first_page_url = @( Output::ActionUrl(@{ list_state.current_page_number = 1; }) );
+
+    previous_page_url = list_state.current_page_number != 1
+        ? @( Output::ActionUrl(@{ list_state.current_page_number = list_state.current_page_number - 1; }) )
+        : FALSE;
+
+    next_page_url = list_state.current_page_number != page_count
+        ? @( Output::ActionUrl(@{ list_state.current_page_number = list_state.current_page_number + 1; }) )
+        : FALSE;
+
+    last_page_url = @( Output::ActionUrl(@{ list_state.current_page_number = page_count; }) );
+
+    page_urls = [];
+
+    set_current_page_url = Output::PrepareActionUrl( @{ list_state.current_page_number = WA::GetRequestData("get", "pn"); });
+
+    foreach(Range(1, page_count) as page_number) {
+
+        if(page_number != list_state.current_page_number) {
+
+            page_urls[page_number] = @( Output::PreparedActionUrl(set_current_page_url, ["pn" => $page_number]) );
+
+        }
+        else {
+
+            page_urls[page_number] = FALSE;
+        }
+    }
+
+    return [
+        .current_page_number => list_state.current_page_number,
+        .row_count => row_count,
+        .page_count => page_count,
+        .current_page_size => list_state.current_page_size,
+        .first_url => first_page_url,
+        .previous_url => previous_page_url,
+        .next_url => next_page_url,
+        .last_url => last_page_url,
+        .page_urls => page_urls,
+        .page_size_urls => page_size_urls
+    ];
+}
+
+
+
+function SetSortableListItemsSource(ref contexts) {
+
+    contexts.muffin.content_source = @{
+
+        items = Crud::GetAllItems(contexts, contexts.muffin.modes.list);
+
+        list = [
+            .items => []
+        ];
+
+        foreach(items as item) {
+
+            list_item = [];
+
+            foreach(contexts.muffin.modes as mode) {
+
+                if(IsSet(mode.process_list_item)) {
+
+                    @mode.process_list_item(item, list_item);
+                }
+            }
+
+            if(list_item) {
+
+                list.items[] = list_item;
+            }
+        }
+
+        items = FALSE;
+
+        foreach(contexts.muffin.modes as mode) {
+
+            if(IsSet(mode.process_list)) {
+
+                @mode.process_list(items, list);
+            }
+        }
+
+        if(contexts.muffin.modes.list.table_template !== FALSE) {
+
+            list.list_table = Output::IncludeTemplate(
+                contexts.muffin.modes.list.table_template === TRUE
+                    ? ::SortableListTableTemplate
+                    : contexts.muffin.modes.list.table_template,
+                list
+            );
+        }
+
+        if(contexts.muffin.modes.list.pagination_template !== FALSE) {
+
+            list.list_pagination = Output::IncludeTemplate(
+                contexts.muffin.modes.list.pagination_template === TRUE
+                    ? ::SortableListPaginationTemplate
+                    : contexts.muffin.modes.list.pagination_template,
+                list
+            );
+        }
+
+        Output::Template(
+            contexts.muffin.modes.list.template ?: ::SortableListTemplate,
+            list
+        );
+    };
+}
+
+
+
+function PrepareSortOrders(val columns, val sort_orders) {
+
+    if(sort_orders == FALSE) {
+
+        sort_orders = [];
+        foreach(columns as column_name) {
+
+            sort_orders[column_name] = "";
+        }
+    }
+
+    return sort_orders;
+}
+
+
+
+function PreparePageSizes(val page_sizes) {
+
+    return page_sizes ?: [10, 12, 15, 20, 50];
+}

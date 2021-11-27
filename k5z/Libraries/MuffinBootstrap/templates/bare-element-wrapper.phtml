@@ -1,0 +1,9 @@
+<?php
+/* @var $variables */
+/* @var $element_output */
+/* @var $element_data */
+extract($variables); ?>
+<?= $element_output ?>
+<?php foreach ($element_data['messages']['errors'] as $error): ?>
+    <span class="help-block"><?= $error ?></span>
+<?php endforeach ?>

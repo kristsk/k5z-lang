@@ -1,0 +1,11 @@
+<?php
+/* @var $variables */
+/* @var $content */
+if (is_array($variables)): ?>
+    <?php extract($variables); ?>
+    <div class="zzzz">
+        <?= $content ?>
+    </div>
+<?php else: ?>
+    a<?php var_dump($variables); ?>b
+<?php endif ?>

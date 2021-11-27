@@ -1,0 +1,10 @@
+<?php
+/* @var $variables */
+/* @var $elements */
+/* @var $params */
+extract($variables); ?>
+<form class="form muffin-form" role="form" id="<?= $params['form_id'] ?>" method="post">
+    <?php foreach ($elements as $element): ?>
+        <?= is_array($element) ? var_dump($element) : $element ?>
+    <?php endforeach ?>
+</form>

@@ -1,0 +1,30 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+program MainClosureRunner;
+
+
+
+function CaptureClosure(val function_name, val initial_frame, val is_dirty) {
+    
+}
+
+
+
+function MainClosureRunner(val volatile) {
+
+    initializer_closures = [];
+
+    foreach(volatile.libraries_with_initializers as library_with_initializer) {
+        initializer_closures[] = ::CaptureClosure(library_with_initializer .. "_Initialize", [], TRUE);
+    }
+    initializer_closures[] = ::CaptureClosure(volatile.program_library .. "_Main", [], TRUE);
+
+    foreach(initializer_closures as initializer_closure) {
+        @initializer_closure();
+    }
+}
+
+function Main() {
+
+}

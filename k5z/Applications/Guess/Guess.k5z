@@ -1,0 +1,121 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+
+// This file contains a simple ilustration of most baisc principles of K5Z.
+// To compile this file run from root of the repo:
+//      ./this-k5z k5z/Applications/Guess/Guess.k5z
+// The compiler will produce file "k5z/Applications/Guess/Guess.k5z.php", which, given that
+// PHP 7.* (or newer) is present in your system, can be executed by executing this command
+// from root of the repo:
+//      php -S 127.0.0.1 8080 k5z/Applications/Guess/Guess.k5z.php
+// and then opening broser to http://127.0.0.1:8080
+
+// Following comments try to describe some of the basic points of a simple K5Z program
+
+// This line declares type of this unit-file to be "program". Name (in this case "Guess") must match
+// the file (Guess.k5z). Compiling "program" unit-file makes the compiler to add the K5Z core
+// library and combine code from all the included libraries to produce final "executable" file.
+program Guess;
+
+
+// The next section defines imported libaries used in this program. The "as XXX" part declares an alias for
+// that library. Compiler first tries to resolve the file names using paths given with "-libraryPath"
+// compiler argument and then relative to the unit-file itself. Shortcut command "this-k5z"
+// sets "-libraryPath" as "<repo root>/k5z".
+// Libraries in "src/k5z/SystemLibraries" directory are compiled and copied to "k5z/SystemLibraries" by ant task -
+// either when building compiler ("ant build") or explicitly asking for libraries to be rebuilt ("ant lib-force")
+
+// * WebApplication
+//      This system library implements functions related to web-application life cycle. The functions presented to
+//      userland are quite low-level and usualy are wrapped in userland libraries. Notable functions are:
+//          - WebApplication::Output(...) - when called, the program execution is suspended, its state is stored, and
+//            a output is sent to the browser
+//          - WebApplication::GetProgramUrl(...) - creates and registers an a unique URL which, when received by
+//            program, allows to restore program state and resume execution of program.
+//      For now, to learn more about this library, see code here:
+//          - <repo root>/src/k5z/SystemLibraries/WebApplication.k5z
+//          - <repo root>/src/k5z/SystemLibraries/WebApplication.php
+import WebApplication as WA from "SystemLibraries";
+
+
+// * StandaloneWebApplication
+//      This system library implements core-level program state management code for executing standalone
+//      (as opposed to embedded) web-applications. This library does not have any userland functions. It
+//      is necessary to have a library implementing program state management for program unit-file (although
+//      no error is thrown if no such library is present, sorry about that. Code for this library can be seen here:
+//          - <repo root>/src/k5z/SystemLibraries/StandaloneWebApplication.k5z
+//          - <repo root>/src/k5z/SystemLibraries/StandaloneWebApplication.php
+import StandaloneWebApplication from "SystemLibraries";
+
+// * BananaSplit
+//      This userland library uses WebApplication library to implement most basic UI elements:
+//          - asking for some input value - BS::Input(...)
+//          - showing a message - BS::Okay(...)
+//          - showing a simple choice dialog - BS::YesNo(...)
+import BananaSplit as BS from "Libraries/BananaSplit";
+
+
+// Function "Main" is entry point for the program. It must be present in program unit-file.
+function Main() {
+
+    // Initializes some variables
+    max = 100;
+    min = 1;
+    guesses = 0;
+    // Function "Rand" is exposed by core library and does not need "alias::" or "::" to be recognized/
+    secret_number = Rand(min, max);
+
+    // Calls local function (see below). Program execution is suspended here...
+    name = ::AskForName("Jānis Zars");
+    // .. and after returning (user presses "OK" button), control flow goes on to the next line.
+
+    // This shows a greeting, and again program execution is suspended...
+    BS::Okay("Hello, " .. name);
+    // ... and resumed.
+
+    while(TRUE) {
+
+        // Askin for input from user, suspends execution...
+        guess = BS::Input("Enter a number from " .. min .. " to " .. max .. " (inclusive)", "");
+        // ... and returns with the number user provided.
+
+        guesses = guesses + 1;
+
+        if(guess == secret_number) {
+
+            BS::Okay("Congratulations, " .. name .. ", You did it! It took You " .. guesses .. " guesses!");
+
+            // This shows a Yes/No dialog and returns a logical boolean
+            if(BS::YesNo("Would you like to restart?")) {
+                // This causes the whole program to be restarted, the execution is stopped and state is reset.
+                WA::Restart();
+            }
+            else {
+                // This just suspends program execution and as there are no program return URLs set, this halts the
+                // execution.
+                WA::Output("Bye-bye!");
+            }
+        }
+
+        if((guess > max) or (guess < min)) {
+
+            BS::Okay("Huh?");
+        }
+        else if(guess > secret_number) {
+
+            BS::Okay("Too big!");
+            max = guess - 1;
+        }
+        else if(guess < secret_number) {
+
+            BS::Okay("Too small!");
+            min = guess + 1;
+        }
+    }
+}
+
+function AskForName(val default_name) {
+
+    return BS::Input("Enter Your name!", default_name);
+}

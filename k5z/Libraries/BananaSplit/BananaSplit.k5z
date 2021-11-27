@@ -1,0 +1,286 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library BananaSplit;
+
+
+
+import WebApplication as WA from "SystemLibraries";
+
+
+
+include phtml "templates/box.phtml" as function BoxHtml(val content);
+include phtml "templates/okay.phtml" as function OkayHtml(val message, val url);
+include phtml "templates/yesno.phtml" as function YesNoHtml(val question, val yes_url, val no_url);
+include phtml "templates/input.phtml" as function InputHtml(val prompt, val default_value, val url, val input_name);
+include phtml "templates/choice.phtml" as function ChoiceHtml(val question, val options);
+
+
+
+function Initialize() {
+
+    resumer_thread_name = "banana_split_resumer";
+
+    resumer_thread_closure = @{
+
+        while(TRUE) {
+
+            return_vector_value = ::FetchCurrentReturnVectorValue();
+
+            if(return_vector_value == FALSE) {
+                ::OutputLastOutput(::GetLastThread());
+                continue;
+            }
+
+            return_vector = ::ParseReturnVectorValue(return_vector_value);
+            if(return_vector == FALSE) {
+                WA::Output("Could not parse return vector value. How did you get here?");
+                continue;
+            }
+
+            if(::ThreadHasReturnValueForId(return_vector.thread_name, return_vector.value_id)) {
+
+                ::SwitchToReturnThreadWithReturnValue(
+                    return_vector.thread_name,
+                    ::GetThreadReturnValueForId(return_vector.thread_name, return_vector.value_id)
+                );
+            }
+            else {
+                ::OutputLastOutput(return_vector.thread_name);
+            }
+        }
+    };
+
+    MakeNamedThread(
+        thread_name: resumer_thread_name,
+        closure: resumer_thread_closure
+    );
+
+    WA::SetResumerThread(resumer_thread_name);
+}
+
+
+
+function FetchCurrentReturnVectorValue() {
+
+    return_vector_value = WA::GetRequestData("get", "k", FALSE);
+
+    return return_vector_value;
+}
+
+
+
+function ParseReturnVectorValue(val return_vector_value) {
+
+    return_vector = ArrayExplode(".", return_vector_value);
+
+    if(IsEmpty(return_vector)) {
+        return FALSE;
+    }
+
+    return [
+        .thread_name => return_vector[0],
+        .value_id => return_vector[1]
+    ];
+}
+
+
+
+function SwitchToReturnThreadWithReturnValue(val thread_name, val return_value) {
+
+    ::ResetThreadReturnValuesAndReturnUrl(thread_name);
+
+    SwitchToThread(thread_name, return_value);
+}
+
+
+
+function OutputLastOutput(val thread_name) {
+
+    default_last_ouput = [
+        .output => "NO LAST OUTPUT FOR THREAD, EH?",
+        .headers => []
+    ];
+
+    if(ThreadExists(thread_name)) {
+
+        ::ResetThreadReturnValuesAndReturnUrl(thread_name);
+
+        last_output = ::GetLastOutputForThread(thread_name, default_last_ouput);
+    }
+    else {
+        last_output = default_last_ouput;
+    }
+
+    WA::Output(@last_output.source(), @last_output.headers());
+}
+
+
+
+function ResetThreadReturnValuesAndReturnUrl(val thread_name) {
+
+    SetThreadProperty("banana_split_resumer", "return_url_thread_name", thread_name);
+    SetThreadProperty(thread_name, "return_values", []);
+}
+
+
+
+function ThreadHasReturnValueForId(val thread_name, val value_id) {
+
+    return_values = GetThreadProperty(thread_name, "return_values", []);
+
+    return IsSet(return_values[value_id]);
+}
+
+
+
+function GetThreadReturnValueForId(val thread_name, val value_id, opt default_value = FALSE) {
+
+    return_values = GetThreadProperty(thread_name, "return_values", []);
+
+    return IsSet(return_values[value_id])
+        ? return_values[value_id]
+        : default_value;
+}
+
+
+
+function SetThreadReturnValue(val thread_name, val value_id, val value) {
+
+    return_values = GetThreadProperty(thread_name, "return_values", []);
+
+    return_values[value_id] = value;
+
+    SetThreadProperty(thread_name, "return_values", return_values);
+}
+
+
+
+function SetLastOutputForThread(val thread_name, val output, opt headers = FALSE) {
+
+    SetThreadProperty("banana_split_resumer", "last_thread", thread_name);
+    SetThreadProperty(thread_name, "last_output", [.source => output, .headers => headers]);
+}
+
+
+
+function GetLastOutputForThread(val thread_name, opt default = FALSE) {
+
+    return GetThreadProperty(thread_name, "last_output", default);
+}
+
+
+
+function GetLastThread(opt default = FALSE) {
+
+    return GetThreadProperty("banana_split_resumer", "last_thread", default);
+}
+
+
+
+function GetReturnUrl(val value) {
+
+    thread_name = GetThreadProperty("banana_split_resumer", "return_url_thread_name", FALSE);
+
+    if(thread_name == FALSE) {
+        thread_name = CurrentThreadName();
+    }
+
+    id = GenerateUniqueId();
+
+    ::SetThreadReturnValue(thread_name, id, value);
+
+    k = thread_name .. "." .. id;
+
+    return WA::GetProgramUrl(["k" => k]);
+}
+
+
+
+function Box(val content_source) {
+
+    counter = 0;
+
+    output = @{
+        content = @content_source();
+
+        if(IsArray(content)) {
+            content = ArrayJoin("", content);
+        }
+
+        return ::BoxHtml(content .. " - " .. IntVal(counter++));
+    };
+
+    headers = ["Content-Type" => "text/html; charset=utf-8"];
+
+    ::SetLastOutputForThread(CurrentThreadName(), output, headers);
+
+    return WA::Output(@output(), headers);
+}
+
+
+
+function Okay(val message) {
+
+    return ::Box(@{
+        return ::OkayHtml(
+            message: message,
+            url: ::GetReturnUrl(TRUE)
+        );
+    });
+}
+
+
+
+function YesNo(val question) {
+
+    return ::Box(@{
+        return ::YesNoHtml(
+            question: question,
+            yes_url: ::GetReturnUrl(TRUE),
+            no_url: ::GetReturnUrl(FALSE)
+        );
+    });
+}
+
+
+
+function Input(val prompt, opt default_value = "") {
+
+    input_name = GenerateUniqueId("bs-");
+
+    ::Box(@{
+        return ::InputHtml(
+            prompt: prompt,
+            default_value: default_value,
+            url: ::GetReturnUrl(TRUE),
+            input_name: input_name
+        );
+    });
+
+    return WA::GetRequestData("post", input_name);
+}
+
+
+
+function Choice(val question, val options) {
+
+    options_for_html = [];
+    foreach(options as key => value) {
+        options_for_html[key] = ::GetReturnUrl(value);
+    }
+
+    return ::Box(@{
+        return ::ChoiceHtml(
+            question: question,
+            options: options_for_html
+        );
+    });
+}
+
+
+
+function Restart() {
+
+    WA::Restart();
+}

@@ -1,0 +1,132 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library Machine;
+
+
+
+import Buffer as B from "SystemLibraries";
+
+import CurrentThread, Exchange, Muffin, SomeMuffin, SomeMachine, Kitchen;
+
+
+
+function Debug(val p1, val p2, opt suffix = "") {
+
+    //MaybeDebug("muffin.machine" .. suffix, p1, p2);
+    Debug(p1, p2);
+}
+
+
+
+function Error(val p1, val p2, opt suffix = "") {
+
+    ::Debug(p1, p2, suffix);
+    Error(
+        ((p1 && IsScalar(p1)) ? p1 : "")
+        ..
+        ((p2 && IsScalar(p2)) ? ": " .. p2 : "")
+    );
+}
+
+
+
+function MakeRunHandler() {
+
+    starter_thread_name = CurrentThreadName();
+
+    return @(ref contexts) {
+
+        contexts.machine.starter_thread_name = starter_thread_name;
+        contexts.kitchen.last_machine_name = contexts.machine.name;
+    };
+}
+
+
+
+function MakeActionClosureHandler(val action_closure, val next) {
+
+    return @(ref contexts) {
+
+        SomeMuffin::SwitchToWithClosure(
+            contexts.machine.root_muffin_name,
+            Muffin::MakeActionClosureHandler(action_closure, next)
+        );
+    };
+}
+
+
+
+function HandleReturnActionIdRequest(ref contexts) {
+
+    return ::HandleActionRequest(
+        contexts,
+        @(val next) {
+
+              return @{
+
+                  return SomeMuffin::SwitchToWithClosure(
+                      Exchange::GetRequestMuffinName(contexts),
+                      Muffin::MakeReturnActionIdHandler(next)
+                  );
+              };
+        }
+    );
+}
+
+
+
+function HandleFancyUrlRequest(ref contexts) {
+
+    return ::HandleActionRequest(
+        contexts,
+        @(val next) {
+
+             return  @{
+
+                 SomeMuffin::SwitchToWithClosure(
+                     contexts.machine.root_muffin_name,
+                     Muffin::MakeActionClosureHandler(
+                        Exchange::GetRequestFancyUrlActionClosure(contexts),
+                        next
+                     )
+                 );
+             };
+        }
+    );
+}
+
+
+
+function HandleActionRequest(ref contexts, val handler_source) {
+
+    machine_name = Exchange::GetRequestMachineName(contexts);
+
+    SomeMachine::AssertIsActive(machine_name);
+
+    Exchange::SetResponseMachineName(contexts, machine_name);
+
+    SomeMachine::SwitchToWithClosure(machine_name, @handler_source(Kitchen::SwitchTo));
+}
+
+
+
+function HandleBadRequest(ref contexts) {
+
+    machine_name = Exchange::GetRequestMachineName(contexts);
+
+    if(!SomeMachine::IsActive(machine_name)) {
+
+        machine_name = contexts.kitchen.last_machine_name;
+
+       if(!SomeMachine::IsActive(machine_name)) {
+
+           Error("No current machine and no last machine. What is going on out there?");
+       }
+       else {
+
+            Exchange::SetResponseMachineName(contexts, machine_name);
+            Exchange::SetIsRefreshResponse(contexts, TRUE);
+       }
+    }
+}

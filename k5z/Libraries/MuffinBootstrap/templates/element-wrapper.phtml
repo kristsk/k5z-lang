@@ -1,0 +1,10 @@
+<?php
+/* @var $variables */
+/* @var $data */
+/* @var $element */
+/* @var $parts */
+extract($variables); ?>
+<div class="form-group <?= isset($data['errors']) && $data['errors'] ? 'has-error' : '' ?>">
+    <?= $element ?>
+    <?= isset($parts['errors']) ? $parts['errors'] : '' ?>
+</div>

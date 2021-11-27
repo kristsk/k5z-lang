@@ -1,0 +1,142 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library Calculator;
+
+
+
+import StandaloneWebApplication, WebApplication as WS from "SystemLibraries";
+
+import MuffinBootstrapUI as BSUI from "Libraries/MuffinBootstrap";
+
+import CurrentMuffin, SomeMuffin, Output from "Libraries/Muffin";
+
+
+
+include phtml "templates/calculator.phtml" as function CalculatorTemplate(val variables);
+include phtml "templates/calculator.css" as function CalculatorCss();
+include phtml "templates/frame1.phtml" as function CalculatorFrameTemplate(val variables);
+
+
+
+function MakeCalculator(val title, ref calculators) {
+
+    return SomeMuffin::Make(@(ref contexts){
+
+        register_x = &calculators[contexts.muffin.name];
+        register_y = 0;
+        register_x_volatile = TRUE;
+        pending_op = FALSE;
+
+        digit_action = @{
+
+            number = WS::GetRequestData("get", "d");
+
+            if(register_x_volatile == FALSE)
+            {
+                register_x = register_x .. number;
+            }
+            else
+            {
+                register_x = number;
+                register_x_volatile = FALSE;
+            }
+        };
+
+        ops = [
+            .add => @(val x, val y ){ return IntVal(y) + IntVal(x); },
+            .sub => @(val x, val y ){ return IntVal(y) - IntVal(x); },
+            .mul => @(val x, val y ){ return IntVal(y) * IntVal(x); },
+            .div => @(val x, val y) {
+
+                if(IntVal(x) == 0)
+                {
+                    BSUI::OkDialog("You can not divide with zero!");
+                    register_x_volatile = TRUE;
+                    return "ERROR";
+                }
+                else
+                {
+                    return IntVal(y) / IntVal(x);
+                }
+            }
+        ];
+
+        op_action = @{
+
+            pending_op = ops[WS::GetRequestData("get", "o")];
+
+            register_y = register_x;
+            register_x_volatile = TRUE;
+        };
+
+        controls = [
+            .equal => @{
+
+                  tmp = register_x;
+                  register_x = @pending_op(register_x, register_y);
+                  register_y = tmp;
+                  register_x_volatile = TRUE;
+            },
+            .clear => @{
+
+                register_x = 0;
+                register_y = 0;
+                register_x_volatile = TRUE;
+            },
+            .send => @{
+
+                target_calculator = WS::GetRequestData("get", "i");
+
+                calculators[target_calculator] = register_x;
+
+                SomeMuffin::UpdateContainer(target_calculator);
+            },
+            .remove => @{
+
+                if(BSUI::YesNoDialog("Really remove?")) {
+
+                    UnSet(calculators[contexts.muffin.name]);
+
+                    CurrentMuffin::Terminate();
+                }
+            }
+        ];
+
+        control_action = @{
+
+            @controls[WS::GetRequestData("get", "c")]();
+        };
+
+        CurrentMuffin::SetContentSource(@(val mode){
+
+            if(mode == "insert_container") {
+
+                Output::Html("<h1>CXCXCX: " .. mode .. "</h1>");
+                return TRUE;
+            }
+
+            Output::AddCssOnce("calculator.css", ::CalculatorCss);
+
+            variables = [
+                .register_x => register_x == "" ? "0" : register_x,
+                .digit_url => @( Output::ActionUrl(digit_action) ),
+                .op_url => @( Output::ActionUrl(op_action) ),
+                .control_url => @( Output::ActionUrl(control_action) ),
+                .targets => ArrayKeys(calculators)
+            ];
+
+            Output::Template(::CalculatorTemplate, variables);
+        });
+
+        CurrentMuffin::SetFrameSource(@(val mode, val output_source) {
+
+             Output::Template(::CalculatorFrameTemplate, [
+                .muffin_name => contexts.muffin.name,
+                .title => title,
+                .mode => mode,
+                .content => @( @output_source(mode) )
+             ]);
+        });
+    });
+}

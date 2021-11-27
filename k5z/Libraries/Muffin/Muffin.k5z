@@ -1,0 +1,75 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library Muffin;
+
+
+
+import Buffer as B from "SystemLibraries";
+
+import CurrentThread, Output, Exchange;
+
+
+
+function Debug(val p1, val p2, opt suffix = "") {
+
+    //MaybeDebug("muffin.muffin" .. suffix, p1, p2);
+    Debug(p1, p2);
+}
+
+
+
+function Error(val p1, val p2, opt suffix = "") {
+
+    ::Debug(p1, p2, "muffin.muffin" .. suffix);
+
+    Error(
+        ((p1 && IsScalar(p1)) ? p1 : "")
+        ..
+        ((p2 && IsScalar(p2)) ? ": " .. p2 : "")
+    );
+}
+
+
+
+function MakeReturnActionIdHandler(val next) {
+
+    return @(ref contexts) {
+
+        contexts.muffin.next = next;
+
+        return_action_id = Exchange::GetReturnActionId(contexts);
+
+        return_action = contexts.muffin.return_actions[return_action_id] ?? FALSE;
+
+        if(return_action) {
+
+            @return_action(contexts);
+        }
+        else {
+
+            Debug(return_action_id, "RETURN ACTION ID NOT FOUND");
+
+            Exchange::SetIsRefreshResponse(contexts, TRUE);
+        }
+
+        contexts.muffin.return_actions = [];
+
+        return next;
+    };
+}
+
+
+
+function MakeActionClosureHandler(val closure, val next) {
+
+    return @(ref contexts) {
+
+        contexts.muffin.next = next;
+
+        @closure(contexts);
+
+        return next;
+    };
+}
+

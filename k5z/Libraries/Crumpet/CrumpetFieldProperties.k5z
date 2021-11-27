@@ -1,0 +1,372 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library CrumpetFieldProperties;
+
+
+
+import Crumpet;
+import Pdo from "SystemLibraries";
+import Meatloaf as ML from "Libraries";
+
+
+
+function Debug(val p1, val p2, opt suffix = "") {
+
+    MaybeDebug("crumpet.fieldproperties" .. suffix, p1, p2);
+}
+
+
+
+function Base(ref model, val field_name) {
+
+    return @(ref self) {
+
+        self.phases = [];
+    };
+}
+
+
+
+function SimpleValue(ref model, val field_name) {
+
+    return [
+        .new => @( ::Base(model, field_name) ),
+        .bind => @(ref self) {
+
+            self.set_params = @(val data, ref scope) {
+
+                scope.params[field_name] = data[field_name];
+            };
+
+            self.phases.for_where = @(val data, ref where) {
+
+                if(IsSet(data[field_name])) {
+
+                    where.criteria[] = "`" .. field_name .. "` = :" .. field_name;
+                    @self.set_params(data, where);
+                }
+            };
+
+            self.phases.for_insert = @(val data, ref insert) {
+
+                insert.fields[] = field_name;
+
+                if(IsSet(data[field_name])) {
+
+                    insert.values[] = ":" .. field_name;
+                    @self.set_params(data, insert);
+                }
+                else {
+
+                    insert.values[] = "NULL";
+                }
+            };
+
+            self.phases.for_update = @(val data, ref update, opt fields_to_update = FALSE) {
+
+                if(
+                    IsArray(fields_to_update)
+                        ? (InArray(field_name, fields_to_update) && IsSet(data[field_name]))
+                        : IsSet(data[field_name])
+                ) {
+
+                    update.fields_with_values[] = "`" .. field_name .. "` = :" .. field_name;
+                    @self.set_params(data, update);
+                }
+            };
+        }
+    ];
+}
+
+
+
+function DefaultValue(val default_value) {
+
+    return @(ref model, val field_name) {
+
+        return [
+            .new => @( ::Base(model, field_name) ),
+            .bind => @(ref self) {
+
+                self.phases.new = @(ref data, val params){
+
+                    data[field_name] = default_value;
+                };
+            }
+        ];
+    };
+}
+
+
+
+function PartOfPK(ref model, val field_name) {
+
+    return [
+        .new => @( ::Base(model, field_name) ),
+        .bind => @(ref self) {
+
+            self.phases.initialize = @{
+
+                model.pk_field_names[] = field_name;
+            };
+
+            self.phases.for_where_by_pk = @(val data, ref where) {
+
+                if(IsSet(data[field_name])) {
+
+                    where.criteria[] = "`" .. field_name .. "` = :" .. field_name .. "_pk";
+                    where.params[field_name .. "_pk"] = data[field_name];
+                }
+            };
+        }
+    ];
+}
+
+
+
+function AutoPK(ref model, val field_name) {
+
+    return [
+        .new => @( ::PartOfPK(model, field_name) ),
+        .bind => @(ref self) {
+
+            self.phases.new = @(ref data, val params){
+
+                UnSet(data[field_name]);
+            };
+
+            self.phases.after_insert = @(ref data) {
+
+                data[field_name] = Pdo::LastInsertId(model.pdo);
+            };
+        }
+    ];
+}
+
+
+
+function UserPK(opt pk_source = FALSE) {
+
+    pk_source = pk_source ?: GenerateUniqueId;
+
+    return @(ref model, val field_name) {
+
+        return [
+            .new => @( ::PartOfPK(model, field_name) ),
+            .bind => @(ref self) {
+
+                self.phases.new = @(ref data, val params) {
+
+                    data[field_name] = @pk_source();
+                };
+            }
+        ];
+    };
+}
+
+
+
+function String(ref model, val field_name) {
+
+    return [
+        .new => @( ::SimpleValue(model, field_name) ),
+        .bind => @(ref self) {
+
+            self.phases.initialize = @{
+
+                model.field_types[field_name] = "string";
+            };
+        }
+    ];
+}
+
+
+
+function Integer(ref model, val field_name) {
+
+    return [
+        .new => @( ::SimpleValue(model, field_name) ),
+        .bind => @(ref self) {
+
+            self.phases.initialize = @{
+
+                model.field_types[field_name] = "integer";
+            };
+        }
+    ];
+}
+
+
+
+function Boolean(ref model, val field_name) {
+
+    return [
+        .new => @( ::Integer(model, field_name) ),
+        .bind => @(ref self) {
+
+            self.set_params = @(val data, ref scope) {
+
+                scope.params[field_name] = data[field_name] ? 1 : 0;
+            };
+
+            self.phases.after_select = @(val select, ref data) {
+
+                data[field_name] = IsSet(data[field_name])
+                    ? (
+                        data[field_name] == 1
+                            ? TRUE
+                            : FALSE
+                    )
+                    : FALSE;
+            };
+        }
+    ];
+}
+
+
+
+function Json(ref model, val field_name) {
+
+    return [
+        .new => @( ::String(model, field_name) ),
+        .bind => @(ref self) {
+
+            self.set_params = @(val data, ref scope) {
+
+                scope.params[field_name] = JsonEncode(data[field_name], 15);
+            };
+
+            self.phases.after_select = @(val select, ref data) {
+
+                if(IsSet(data[field_name])) {
+
+                    data[field_name] = JsonDecode(data[field_name], TRUE);
+                }
+                else {
+
+                    data[field_name] = FALSE;
+                }
+            };
+        }
+    ];
+}
+
+
+
+function GzippedJson(ref model, val field_name) {
+
+    return [
+        .new => @( ::String(model, field_name) ),
+        .bind => @(ref self) {
+
+            self.set_params = @(val data, ref scope) {
+
+                scope.params[field_name] = GzipEncode(JsonEncode(data[field_name], 15));
+            };
+
+            self.phases.after_select = @(val select, ref data) {
+
+                if(IsSet(data[field_name])) {
+
+                    data[field_name] = JsonDecode(GzipDecode(data[field_name]), TRUE);
+                }
+                else {
+
+                    data[field_name] = FALSE;
+                }
+            };
+        }
+    ];
+}
+
+
+
+function Serialized(ref model, val field_name) {
+
+    return [
+        .new => @( ::String(model, field_name) ),
+        .bind => @(ref self) {
+
+            self.set_params = @(val data, ref scope) {
+
+                scope.params[field_name] = Serialize(data[field_name]);
+            };
+
+            self.phases.after_select = @(val select, ref data) {
+
+                if(IsSet(data[field_name])) {
+
+                    data[field_name] = Unserialize(data[field_name]);
+                }
+                else {
+
+                    data[field_name] = FALSE;
+                }
+            };
+        }
+    ];
+}
+
+
+
+function DateTime(ref model, val field_name) {
+
+    return [
+        .new => @( ::String(model, field_name) ),
+        .bind => @(ref self, val parent) {
+
+            self.set_params = @(val data, ref scope) {
+
+                scope.params[field_name] = data[field_name];
+            };
+
+            self.phases.after_select = @(val select, ref data) {
+
+                if(IsSet(data[field_name])) {
+
+                    data[field_name] = DateTimeFormat(DateTimeCreate(data[field_name]), "Y-m-d H:i:s");
+                }
+            };
+        }
+    ];
+}
+
+
+
+function CreateDateTime(ref model, val field_name) {
+
+    return [
+        .new => @( ::DateTime(model, field_name) ),
+        .bind => @(ref self) {
+
+            self.phases.new = @(ref data, val params) {
+
+                data[field_name] = DateTimeFormat(DateTimeCreate("now"), "Y-m-d H:i:s");
+            };
+        }
+    ];
+}
+
+
+
+function UpdateDateTime(ref model, val field_name) {
+
+    return [
+        .new => @( ::DateTime(model, field_name) ),
+        .bind => @(ref self) {
+
+            self.phases.new = @(ref data, val params) {
+
+                data[field_name] = "";
+            };
+
+            self.phases.for_update = @(val data, ref update, opt fields_to_update = FALSE) {
+
+                data[field_name] = DateTimeFormat(DateTimeCreate("now"), "Y-m-d H:i:s");
+                update.fields_with_values[] = "`" .. field_name .. "` = :" .. field_name;
+                @self.set_params(data, update);
+            };
+        }
+    ];
+}

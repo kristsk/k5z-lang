@@ -1,0 +1,571 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library Output;
+
+
+
+import Buffer as B, CurrentBuffer as CB from "SystemLibraries";
+import WebApplication as WA from "SystemLibraries";
+
+import CurrentThread, SomeThread, SomeMuffin, CurrentMachine, Exchange;
+import Kitchen, Machine, Muffin;
+
+
+
+function Debug(val p1, val p2, opt suffix = "") {
+
+    //MaybeDebug("muffin.output" .. suffix, p1, p2);
+    Debug(p1, p2);
+}
+
+
+
+function Html(val html) {
+
+    CB::AddItem(html);
+}
+
+
+
+function HtmlTag(val name, opt attributes = [], opt content = FALSE) {
+
+    attributes_string = [];
+
+    foreach(attributes as key => value) {
+
+        attributes_string[] = key .. "='" .. value .. "'";
+    }
+    attributes_string = ArrayJoin(" ", attributes_string);
+
+    if (IsClosure(content)) {
+
+        CB::AddItem("<" .. name .. " " .. attributes_string .. ">");
+        @content();
+        CB::AddItem("</" .. name .. ">");
+    }
+    else {
+
+        if (content !== FALSE) {
+
+            html = [
+                "<" .. name .. " " .. attributes_string .. ">",
+                content,
+                "</" .. name .. ">"
+            ];
+        }
+        else {
+
+            html = "<" .. name .. " " .. attributes_string .. "/>";
+        }
+
+        ::HtmlArray(html);
+    }
+}
+
+
+
+function HtmlArray(val html_array) {
+
+    CB::AddItems(html_array);
+}
+
+
+
+function MuffinName() {
+
+    CB::AddItem(@(ref muffin) {
+
+        CB::AddItem(muffin.name);
+    });
+}
+
+
+
+function PrepareActionUrl(val action) {
+
+    id = GenerateUniqueId();
+
+    return @(val url_encoder, opt extra_params = []) {
+
+        CB::AddItem(@(ref muffin) {
+
+            CB::AddItem(@(ref machine) {
+
+                muffin.return_actions[id] = action;
+
+                extra_params = extra_params ?: [];
+
+                url = WA::GetProgramUrl([
+                    .m => machine.name,
+                    .u => muffin.name,
+                    .id => id
+                ] + extra_params);
+
+                CB::AddItem(url_encoder ? @url_encoder(url) : url);
+            });
+        });
+    };
+}
+
+
+
+function PreparedActionUrl(val action_url, opt extra_params = [], opt url_encoder = FALSE ) {
+
+    @action_url(url_encoder, extra_params);
+}
+
+
+
+function ActionUrl(val action, opt url_encoder = FALSE) {
+
+    ::PreparedActionUrl(::PrepareActionUrl(action), url_encoder);
+}
+
+
+
+function ActionLink(val title, val action) {
+
+    ::Html("<a href='");
+    ::ActionUrl(action);
+    ::Html("'>" .. title .. "</a>");
+}
+
+
+
+function Muffin(val muffin_name) {
+
+    muffin_output_buffer = B::DoPreservingCurrent(@{
+
+        CurrentThread::DoWithContexts(@(ref contexts) {
+
+            return SomeMuffin::RenderToBuffer(
+                muffin_name,
+                Exchange::IsRefreshResponse(contexts) ? "full_refresh" : "full"
+            );
+        });
+    });
+
+    CB::AddItem(@{
+
+        CB::AddBufferAndTrash(muffin_output_buffer);
+    });
+}
+
+
+
+function MuffinSlot(val slot_name) {
+
+    muffin_name = CurrentMachine::GetMuffinInSlot(slot_name);
+
+    if(muffin_name != FALSE) {
+
+        ::Muffin(muffin_name);
+    }
+}
+
+
+
+function Template(val template_function, val variables) {
+
+    variable_buffers = [];
+
+    closure_collectors = [];
+
+    crawler = TRUE;
+    crawler = @(ref variables_in) {
+
+        foreach(variables_in as name => &variable_source) {
+
+            if(IsClosure(variable_source)) {
+
+                buffer = B::SetNextForCurrentThread();
+
+                variable_buffers[buffer] = buffer;
+
+                @variable_source();
+
+                closure_collectors[] = @{
+
+                    variables_in[$name] = B::GetItemsAsStringAndTrash(variable_buffers[$buffer]);
+                };
+            }
+            else if(IsArray(variable_source)) {
+
+                if(IsSet(variable_source.include_template)) {
+
+                    @crawler(variable_source.variables);
+
+                    closure_collectors[] = @{
+
+                        variables_in[$name] = @variable_source.template(variable_source.variables);
+                    };
+                }
+                else{
+
+                    @crawler(variable_source);
+                }
+            }
+            else {
+
+                // Do nothing.
+            }
+        }
+    };
+
+    B::DoPreservingCurrent(@{
+
+        @crawler(variables);
+    });
+
+    variable_buffer_processer = @(ref target_context, ref contexts) {
+
+        B::DoPreservingCurrent(@{
+
+            foreach(variable_buffers as key => variable_buffer) {
+
+                variable_buffers[key] = B::SetCurrent("*");
+
+                Output::ProcessBufferItems(
+                    variable_buffer,
+                    @(val closure) {
+
+                        @closure(target_context, contexts);
+                    }
+                );
+            }
+        });
+    };
+
+    CB::AddItem(@(ref muffin, ref contexts) {
+
+        @variable_buffer_processer(muffin, contexts);
+
+        CB::AddItem(@(ref machine) {
+
+            @variable_buffer_processer(machine, contexts);
+
+            foreach(closure_collectors as closure_collector) {
+
+                @closure_collector();
+            }
+
+            ::Html(@template_function(variables));
+        });
+    });
+}
+
+
+
+function IncludeTemplate(val template_function, val variables) {
+
+    return [
+        .include_template => TRUE,
+        .template => template_function,
+        .variables => variables
+    ];
+}
+
+
+
+function AddToResponseKeyOnce(val response_key, val name, val value) {
+
+    CB::AddItem(@(ref muffin, ref contexts) {
+
+        onces = contexts.exchange.response[response_key] ?? [];
+
+        if(!IsSet(onces[name])) {
+
+            onces[name] = value;
+        }
+
+        contexts.exchange.response[response_key] = onces;
+    });
+}
+
+
+
+function AddJavaScriptOnce(val name, val javascript_source) {
+
+    ::AddToResponseKeyOnce("javascript_once", name, javascript_source);
+}
+
+
+
+function AddCssOnce(val name, val css_source) {
+
+    ::AddToResponseKeyOnce("css_once", name, css_source);
+
+    //CB::AddItem(@(ref muffin, ref contexts) {
+    //
+    //        if(Exchange::ExpectsIncrementalResponse(contexts)) {
+    //
+    //            Exchange::AddIncrementalResponseOperation(contexts, "add_css_once", [
+    //              .content => B::DoPreservingCurrent(@( CB::AddItem(@css_source())) )
+    //            ]);
+    //        }
+    //});
+}
+
+
+
+function AddCssLink(val name) {
+
+    ::AddToResponseKeyOnce("css_links", name, name);
+}
+
+
+
+function AddJavaScriptLink(val name) {
+
+    ::AddToResponseKeyOnce("javascript_links", name, name);
+}
+
+
+
+function JavaScript() {
+
+    CB::AddItem(@{
+
+        CB::AddItem(@(ref machine, ref contexts) {
+
+            javascript_once = contexts.exchange.response.javascript_once ?? [];
+
+            CB::AddItem("<script>");
+
+            foreach(javascript_once as name => javascript_source) {
+
+                CB::AddItem("\n/* " .. name .. " */\n");
+                CB::AddItem(@javascript_source());
+            }
+
+            CB::AddItem("</script>");
+        });
+    });
+}
+
+
+
+function JavaScriptBefore(val javascript) {
+
+    CB::AddItem(@{
+
+        CB::AddItem(@(ref machine, ref contexts) {
+
+            B::AddItem(contexts.exchange.response.javascript_before, javascript);
+        });
+    });
+}
+
+
+
+function JavaScriptAfter(val javascript) {
+
+    CB::AddItem(@{
+
+        CB::AddItem(@(ref machine, ref contexts) {
+
+            B::AddItem(contexts.exchange.response.javascript_after, javascript);
+        });
+    });
+}
+
+
+
+function Css() {
+
+    CB::AddItem(@{
+
+        CB::AddItem(@(ref machine, ref contexts) {
+
+            css_once = contexts.exchange.response.css_once ?? [];
+
+            if(css_once) {
+
+                foreach(css_once as name => css_source) {
+
+                    if(!IsSet(contexts.exchange.persistent.css_once[name])) {
+
+                        CB::AddItem("<style data-name='" .. name .. "'>");
+                        CB::AddItem(@css_source());
+                        CB::AddItem("</style>");
+
+                        contexts.exchange.persistent.css_once[name] = name;
+                    }
+                }
+            }
+        });
+    });
+}
+
+
+
+function CssLinks() {
+
+    CB::AddItem(@{
+
+        CB::AddItem(@(ref machine, ref contexts) {
+
+            all_css_links = GetConfigurationItem("css_links", []);
+
+            css_links = contexts.exchange.response.css_links ?? [];
+
+            foreach(css_links as name) {
+
+                if (IsSet(all_css_links[name])) {
+
+                    ::HtmlTag(
+                        "link",
+                        [
+                            .rel => "stylesheet",
+                            "data-name" => name,
+                            .type => "text/css",
+                            .href => all_css_links[name]
+                        ]
+                    );
+                }
+                else {
+
+                    Error("CSS link '" .. name .. "'not found!");
+                }
+            }
+        });
+    });
+}
+
+
+
+function JavaScriptLinks() {
+
+    CB::AddItem(@{
+
+        CB::AddItem(@(ref machine, ref contexts) {
+
+            all_javascript_links = GetConfigurationItem("javascript_links", []);
+
+            javascript_links = contexts.exchange.response.javascript_links ?? [];
+
+            foreach(javascript_links as name) {
+
+                if (IsSet(all_javascript_links[name])) {
+
+                    ::HtmlTag(
+                        "script",
+                        [
+                            .src => all_javascript_links[name],
+                            .type => "text/javascript"
+                        ],
+                        ""
+                    );
+                }
+                else {
+
+                    Error("JavaScript link '" .. name .. "'not found!");
+                }
+            }
+        });
+    });
+}
+
+
+
+function DevTools(opt with_inline_stats = FALSE, opt with_inline_debug = FALSE) {
+
+    if(GetConfigurationItem("web_application.dev_tools.enabled", FALSE) == FALSE) {
+    
+        return FALSE;
+    }
+
+    ::Html("<ul class='list-inline'>");
+    ::Html("<li class='list-inline-item'><a href='?wipe_and_start'>WIPE AND START</a>");
+    ::Html("<li class='list-inline-item'><a href='?recompile'>RECOMPILE</a></li>");
+
+    stats_enabled = GetConfigurationItem("core.stats.enabled", FALSE);
+
+    if(stats_enabled == TRUE) {
+
+        if(with_inline_stats) {
+
+            ::Html("<li class='list-inline-item'><a href='?show_stats' target='devtools-stats'>UPDATE STATS</a></li>");
+        }
+        else {
+
+            ::Html("<li class='list-inline-item'><a href='?show_stats' target='_blank'>SHOW STATS</a></li>");
+        }
+    }
+
+    debug_enabled = GetConfigurationItem("core.debug.enabled", FALSE);
+
+    if(debug_enabled == TRUE) {
+
+        if(with_inline_debug) {
+
+            ::Html("<li class='list-inline-item'><a href='?show_debug' target='devtools-debug'>UPDATE DEBUG</a></li>");
+            ::Html("<li class='list-inline-item'><a href='?clear_debug' target='devtools-debug'>CLEAR DEBUG</a></li>");
+        }
+        else {
+
+            ::Html("<li class='list-inline-item'><a href='?show_debug' target='_blank'>SHOW DEBUG</a></li>");
+            ::Html("<li class='list-inline-item'><a href='?clear_debug' target='_blank'>CLEAR DEBUG</a></li>");
+        }
+    }
+
+   ::Html("</ul>");
+
+    if(stats_enabled && with_inline_stats) {
+
+        ::Html("<iframe name='devtools-stats' frameborder='0' src='?show_stats' style='width: 100%'></iframe>");
+    }
+
+    if(debug_enabled && with_inline_debug) {
+
+        ::Html("<iframe name='devtools-debug' frameborder='0' src='?show_debug' style='width: 100%'></iframe>");
+    }
+}
+
+
+
+function ProcessBufferItems(val source_buffer, val closure_handler) {
+
+    items = B::GetItemsAndTrash(source_buffer);
+
+    //Debug(ArrayCount(items), "ProcessBuffer item count for " .. buffer .. " into " .. B::GetCurrent());
+
+    foreach(items as item) {
+
+        if(IsClosure(item)) {
+
+            //Debug("", "closure " .. item.php_name);
+
+            @closure_handler(item);
+        }
+        else if(IsArray(item)) {
+
+           //Debug(ArrayCount(item), "a part count");
+
+            if(ArrayCount(item) == 1 && IsSet(item[0])) {
+
+                //Debug(item[0], "a 0");
+
+                CB::AddItem(item[0]);
+            }
+            else {
+
+                foreach(item as item_part) {
+
+                    //Debug(item_part, "a part");
+
+                    CB::AddItem(item_part);
+                }
+            }
+        }
+        else {
+
+            //Debug(item, "item");
+
+            CB::AddItem(item);
+        }
+    }
+
+    //Debug("", "ProcessBuffer done for " .. buffer .. " into " .. B::GetCurrent());
+}

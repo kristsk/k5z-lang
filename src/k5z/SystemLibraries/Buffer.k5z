@@ -1,0 +1,74 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library Buffer;
+
+
+
+include php "./Buffer.php" with {
+
+
+    function GetCurrent() as "Buffer_GetCurrent"; //
+
+    function SetCurrent(val buffer_name, opt prefix = "auto") as "Buffer_SetCurrent"; //
+
+    function GetCurrentForThread(val thread_name) as "Buffer_GetCurrentForThread"; //
+    function SetCurrentForThread(val thread_name, val buffer_name, opt prefix = "auto") as "Buffer_SetCurrentForThread"; //
+
+    function GetNext(opt prefix = "auto") as "Buffer_GetNext"; //
+
+    function AddItem(val buffer_name, val item) as "Buffer_AddItem"; //
+    function AddItems(val buffer_name, val items) as "Buffer_AddItems"; //
+
+    function GetItems(val buffer_name, opt default_items = FALSE) as "Buffer_GetItems"; //
+
+    function Trash(val buffer_name) as "Buffer_Trash"; //
+
+    function GetItemsAndTrash(val buffer_name, opt default_items = FALSE) as "Buffer_GetItemsAndTrash"; //
+
+    function IsEmpty(val buffer_name) as "Buffer_IsEmpty"; //
+
+    function SetItems(val buffer_name, val items) as "Buffer_SetItems"; //
+
+    function AddBuffer(val target_buffer_name, val source_buffer_name) as "Buffer_AddBuffer"; //
+    function AddBufferAndTrash(val target_buffer_name, val source_buffer_name) as "Buffer_AddBufferAndTrash"; //
+
+    function GetItemsAsString(val buffer_name, opt default_items = "") as "Buffer_GetItemsAsString";  //
+    function GetItemsAsStringAndTrash(val buffer_name, opt default_items = "") as "Buffer_GetItemsAsStringAndTrash"; //
+
+    function DumpStateToDebug(opt title = FALSE) as "Buffer_DumpStateToDebug"; //
+
+    function DumpBufferToDebug(val buffer_name, opt title = FALSE) as "Buffer_DumpBufferToDebug"; //
+}
+
+
+
+function DoPreservingCurrent(val closure) {
+
+    current_buffer = ::GetCurrent();
+
+    @closure();
+
+    result = ::GetCurrent();
+
+    if(current_buffer) {
+
+        ::SetCurrent(current_buffer);
+    }
+
+    return result;
+}
+
+
+
+function SetNextForCurrentThread(opt prefix = "auto") {
+
+    return ::SetCurrent("*", prefix);
+}
+
+
+
+function SetNextForThread(val thread_name, opt prefix = "auto") {
+
+    return ::SetCurrentForThread(thread_name, "*", prefix);
+}

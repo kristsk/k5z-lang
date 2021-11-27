@@ -1,0 +1,48 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library ControlPanel;
+
+
+
+import CurrentMuffin, SomeMuffin, Output from "Libraries/Muffin";
+
+import Calculator;
+
+
+
+include phtml "templates/controller.phtml" as function ControllerTemplate(val variables);
+
+
+
+function MakeControlPanel(ref calculators) {
+
+    return SomeMuffin::Make(@(ref contexts){
+
+        counter = 4;
+
+        add_calculator_action = @{
+
+            calculator = Calculator::MakeCalculator("CALCULATOR #" .. (counter++) .. "!", calculators);
+
+            SomeMuffin::InsertContainer(
+                calculator,
+                "div.row.calculators"
+            );
+
+            foreach(ArrayKeys(calculators) as muffin_name) {
+
+                SomeMuffin::UpdateContainer(muffin_name);
+            }
+        };
+
+        CurrentMuffin::SetContentSource( @(val mode){
+
+            Output::Template(::ControllerTemplate, [
+                .add_calculator_url => @( Output::ActionUrl( add_calculator_action ) )
+            ]);
+        });
+
+        CurrentMuffin::SetFrameSource(SomeMuffin::MakeDefaultFrameSource("controller-frame"));
+    });
+}

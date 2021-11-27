@@ -1,0 +1,3 @@
+BASEDIR=$(dirname $0)
+jdb -classpath $BASEDIR/build:$BASEDIR/lib/class lv.kristsk.k5z.Compiler -libraryPath $BASEDIR/k5z $1 $2 $3 $4
+

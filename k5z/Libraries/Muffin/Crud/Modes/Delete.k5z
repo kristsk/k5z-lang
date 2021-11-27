@@ -1,0 +1,65 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library Delete;
+
+
+
+import Muffin, Output from "Libraries/Muffin";
+import Crud from "Libraries/Muffin/Crud";
+
+import WebApplication as WA from "SystemLibraries";
+
+
+
+include phtml "../../templates/crud/delete.phtml" as function DeleteTemplate(val variables);
+
+
+
+function DeleteMode(val message_source, val action, opt template = FALSE) {
+
+    return @(ref contexts) {
+
+        delete_url = Output::PrepareActionUrl(@{
+
+            return ::DeleteItem(WA::GetRequestData("get", "pk"), contexts);
+        });
+
+        contexts.muffin.modes.delete = [
+            .message_source => message_source,
+            .action => action,
+            .template => template,
+            .process_list_item => @(val item, ref list_item) {
+
+                item_pk = Crud::GetPkFromItem(contexts, item);
+
+                list_item.delete_url = @( Output::PreparedActionUrl(delete_url, ["pk" => $item_pk]) );
+            }
+        ];
+    };
+}
+
+
+
+function DeleteItem(val item_pk, ref contexts) {
+
+    item = Crud::GetItemByPk(contexts, item_pk);
+
+    yes_or_no = Muffin::DialogWithSource(@(val mode) {
+
+        Output::Template(
+            contexts.muffin.modes.delete.template ?: ::DeleteTemplate,
+            [
+                .yes_url => @( Output::ActionUrl( @( Muffin::EndDialog("yes") )) ),
+                .no_url => @( Output::ActionUrl( @( Muffin::EndDialog("no") )) ),
+                .delete_message => @contexts.muffin.modes.delete.message_source(item),
+                .item => item
+            ]
+        );
+    });
+
+    if(yes_or_no == "yes") {
+
+        @contexts.muffin.modes.delete.action(item_pk);
+    }
+}

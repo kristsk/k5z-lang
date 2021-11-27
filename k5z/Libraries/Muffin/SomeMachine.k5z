@@ -1,0 +1,160 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library SomeMachine;
+
+
+
+import Buffer as B, CurrentBuffer as CB from "SystemLibraries";
+
+import SomeThread, SomeMuffin, Output, Exchange, Kitchen, CurrentThread;
+
+
+
+function Debug(val p1, val p2, opt suffix = "") {
+
+    //MaybeDebug("muffin.some_machine" .. suffix, p1, p2);
+    Debug(p1, p2);
+}
+
+
+
+function Error(val p1, val p2, opt suffix = "") {
+
+    ::Debug(p1, p2, suffix);
+    Error(
+        ((p1 && IsScalar(p1)) ? p1 : "")
+        ..
+        ((p2 && IsScalar(p2)) ? ": " .. p2 : "")
+    );
+}
+
+
+
+function Make(val start_closure) {
+
+    maker_thread_name = CurrentThreadName();
+
+    machine_name = MakeThread(@{
+
+        CurrentThread::RegisterContext("machine", [
+            .name => FALSE,
+            .slots => [],
+            .root_muffin_name => FALSE,
+            .starter_thread_name => maker_thread_name
+        ]);
+
+        CurrentThread::DoWithContexts(@(ref contexts) {
+
+            contexts.machine.name = CurrentThreadName();
+
+            Kitchen::RegisterMachine(contexts.machine.name);
+
+            @start_closure(contexts);
+
+            closure = SwitchToThread(maker_thread_name);
+
+            while(TRUE) {
+
+                if(IsClosure(closure)) {
+
+                    closure = @closure(contexts);
+                }
+                else {
+
+                    ::Error(
+                        [.closure => closure, .previous_thread_name => PreviousThreadName()],
+                        "Machine loop received non-closure, now what?"
+                    );
+                }
+            }
+        });
+    });
+
+    SwitchToThread(machine_name);
+
+    return machine_name;
+}
+
+
+
+function MakeAndRun(val start_closure) {
+
+    return ::Run(::Make(start_closure));
+}
+
+
+
+function IsActive(val machine_name) {
+
+    return ThreadExists(machine_name);
+}
+
+
+
+function AssertIsActive(val machine_name) {
+
+    if(!::IsActive(machine_name)) {
+
+        ::Error("Failed to assert machine " .. machine_name .. " is active", "SomeMachine::AssertIsActive");
+    }
+}
+
+
+
+function SwitchToWithClosure(val machine_name, val closure) {
+
+    ::AssertIsActive(machine_name);
+
+    return SwitchToThread(machine_name, closure);
+}
+
+
+
+function Run(val machine_name) {
+
+    ::AssertIsActive(machine_name);
+
+    SomeThread::DoWithContexts(machine_name, @(ref contexts) {
+
+        Exchange::SetResponseMachineName(contexts, machine_name);
+
+        SomeMuffin::InsertContainer(contexts.machine.root_muffin_name, "body");
+    });
+
+    return Kitchen::SwitchTo();
+}
+
+
+
+function OutputFullResponseToBuffer(val machine_name) {
+
+    ::AssertIsActive(machine_name);
+
+    return SomeThread::DoWithContexts(machine_name, @(ref contexts) {
+
+        root_muffin_output_buffer = SomeMuffin::RenderToBuffer(
+            contexts.machine.root_muffin_name,
+            Exchange::IsRefreshResponse(contexts) ? "full_refresh" : "full"
+        );
+
+        machine_output_buffer = B::SetNextForCurrentThread();
+
+        Output::ProcessBufferItems(root_muffin_output_buffer, @(val buffer_item) {
+
+            @buffer_item(contexts.machine, contexts);
+        });
+
+        return machine_output_buffer;
+    });
+}
+
+
+
+function GetRootMuffinName(val machine_name) {
+
+    return SomeThread::DoWithContexts(machine_name, @(ref contexts) {
+
+        return contexts.machine.root_muffin_name;
+    });
+}

@@ -1,0 +1,25 @@
+<ivy-module version="2.0">
+	<info organisation="org.k" module="gen5.k5z"/>
+	<configurations>
+		<conf name="build"/>
+		<conf name="compile"/>
+		<conf name="jar"/>
+		<conf name="st321"/>
+	    <conf name="ant-contrib"/>
+    </configurations>	
+	<dependencies>
+		<dependency org="commons-lang" conf="compile,jar->default" name="commons-lang" rev="2.4"/>
+		<dependency org="commons-cli" conf="compile,jar->default" name="commons-cli" rev="1.2"/>
+
+		<dependency org="com.esotericsoftware.kryo" conf="compile,jar->default" name="kryo" rev="2.22"/>
+
+		<dependency org="org.antlr" conf="st321->default" name="stringtemplate" rev="3.2.1" transitive="false"/>
+		<dependency org="org.antlr" conf="build->default" name="antlr" rev="3.4" transitive="false"/>
+		<dependency org="org.antlr" conf="build,jar->default" name="stringtemplate" rev="4.0.2" transitive="false"/>
+		<dependency org="org.antlr" conf="compile,build,jar->default" name="antlr-runtime" rev="3.4" transitive="false"/>
+		<dependency org="antlr" conf="compile,jar->default" name="antlr" rev="2.7.7" transitive="false"/>
+		
+		<dependency org="org.jgrapht" conf="compile,jar->default" name="jgrapht-jdk1.5" rev="0.7.3"/>
+		<dependency org="log4j" conf="compile,jar->default" name="log4j" rev="1.2.15" transitive="false"/>
+	</dependencies>
+</ivy-module>

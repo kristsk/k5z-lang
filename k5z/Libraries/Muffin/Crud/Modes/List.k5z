@@ -1,0 +1,93 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library List;
+
+
+import Muffin, Output from "Libraries/Muffin";
+import Crud from "Libraries/Muffin/Crud";
+
+
+
+include phtml "../../templates/crud/list.phtml" as function ListTemplate(val variables);
+include phtml "../../templates/crud/list-table.phtml" as function ListTableTemplate(val variables);
+
+
+
+function ListMode(val columns, opt item_formatter = FALSE, opt template = FALSE, opt table_template = TRUE) {
+
+    return @(ref contexts) {
+
+        ::SetListItemsSource(contexts);
+
+        contexts.muffin.modes.list = [
+            .template => template,
+            .table_template => table_template,
+            .process_list_item => @(val item, ref list_item) {
+
+                @item_formatter(item, list_item);
+            },
+            .process_list => @(val items, ref list) {
+
+                list.columns = columns;
+            }
+        ];
+    };
+}
+
+
+
+function SetListItemsSource(ref contexts) {
+
+    contexts.muffin.content_source = @{
+
+        items = Crud::GetAllItems(contexts);
+
+        list = [
+            .items => []
+        ];
+
+        foreach(items as item) {
+
+            list_item = [];
+
+            foreach(contexts.muffin.modes as mode) {
+
+                if(IsSet(mode.process_list_item)) {
+
+                    @mode.process_list_item(item, list_item);
+                }
+            }
+
+            if(list_item) {
+
+                list.items[] = list_item;
+            }
+        }
+
+        items = FALSE;
+
+        foreach(contexts.muffin.modes as mode) {
+
+            if(IsSet(mode.process_list)) {
+
+                @mode.process_list(items, list);
+            }
+        }
+
+        if(contexts.muffin.modes.list.table_template !== FALSE) {
+
+            list.list_table = Output::IncludeTemplate(
+                contexts.muffin.modes.list.table_template === TRUE
+                    ? ::ListTableTemplate
+                    : contexts.muffin.modes.list.table_template,
+                list
+            );
+        }
+
+        Output::Template(
+            contexts.muffin.modes.list.template ?: ::ListTemplate,
+            list
+        );
+    };
+}

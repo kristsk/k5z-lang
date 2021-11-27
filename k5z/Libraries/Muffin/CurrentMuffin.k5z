@@ -1,0 +1,185 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library CurrentMuffin;
+
+
+
+import SomeFlapjack, CurrentThread, SomeMuffin from "Libraries/Muffin";
+
+
+
+function Debug(val p1, val p2, opt suffix = "") {
+
+    //MaybeDebug("muffin.muffin" .. suffix, p1, p2);
+    Debug(p1, p2);
+}
+
+
+
+function Error(val p1, val p2, opt suffix = "") {
+
+    ::Debug(p1, p2, "muffin.muffin" .. suffix);
+
+    Error(
+        ((p1 && IsScalar(p1)) ? p1 : "")
+        ..
+        ((p2 && IsScalar(p2)) ? ": " .. p2 : "")
+    );
+}
+
+
+
+function MakeHelperThread(val thread_closure) {
+
+    helper_thread_name = SomeFlapjack::Make(@(val contexts) {
+
+        @thread_closure(contexts);
+    });
+
+    CurrentThread::DoWithContexts(@(ref contexts) {
+
+        Error("pls use helper_thread_names in kitchen context");
+        //contexts.muffin.helper_thread_names[] = helper_thread_name;
+    });
+
+    return helper_thread_name;
+}
+
+
+
+function GetName() {
+
+    return CurrentThread::DoWithContexts(@(ref contexts) {
+
+        return contexts.muffin.name;
+    });
+}
+
+
+
+function SetContentSource(val content_source) {
+
+    SomeMuffin::SetContentSource(
+        ::GetName(),
+        content_source
+    );
+}
+
+function SetFrameSource(val frame_source) {
+
+    SomeMuffin::SetFrameSource(
+        ::GetName(),
+        @(val mode, val output_source, ref all_contexts) {
+            @frame_source(
+                mode,
+                (
+                    mode == "insert_container"
+                        ? @{ return FALSE; }
+                        : output_source
+                ),
+                all_contexts
+            );
+        }
+    );
+}
+
+
+
+function Terminate() {
+
+    CurrentThread::DoWithContexts(@(ref contexts) {
+
+        contexts.kitchen.muffins[contexts.muffin.name].terminated = TRUE;
+    });
+}
+
+
+
+function StartDialog(val setup_closure) {
+
+    previous_thread_name = PreviousThreadName();
+
+    return CurrentThread::DoWithContexts(@(ref contexts) {
+
+        previous_dialog_context = contexts.dialog;
+
+        contexts.dialog = [
+            .done => FALSE,
+            .result => FALSE
+        ];
+
+        original_content_source = contexts.kitchen.muffins[contexts.muffin.name].content_source;
+
+        @setup_closure(contexts);
+
+        return_thread_name = ThreadExists(previous_thread_name)
+            ? previous_thread_name
+            : contexts.machine.name;
+
+        closure = SwitchToThread(
+            return_thread_name,
+            contexts.muffin.next
+        );
+
+        while(contexts.dialog.done == FALSE) {
+
+            if(IsClosure(closure)) {
+
+                closure = @closure(contexts);
+            }
+            else {
+
+                ::Debug(closure, "Stuck in a muffin dialog loop without action closure! Bailing out!");
+
+                contexts.dialog.done = TRUE;
+                contexts.dialog.result = TRUE;
+
+                break;
+            }
+        }
+
+        contexts.kitchen.muffins[contexts.muffin.name].content_source = original_content_source;
+
+        result = contexts.dialog.result;
+
+        contexts.dialog = previous_dialog_context;
+
+        return result;
+    });
+}
+
+
+
+function StartDialogWithSource(val content_source) {
+
+    return ::StartDialog(@(ref contexts) {
+
+        contexts.kitchen.muffins[contexts.muffin.name].content_source = content_source;
+    });
+}
+
+
+
+function EndDialog(val result) {
+
+    return CurrentThread::DoWithContexts(@(ref contexts) {
+
+        contexts.dialog.done = TRUE;
+        contexts.dialog.result = result;
+    });
+}
+
+
+
+function RemoveContainer() {
+
+    SomeMuffin::RemoveContainer(CurrentMuffin::GetName());
+}
+
+
+
+function UpdateContainer() {
+
+    SomeMuffin::UpdateContainer(CurrentMuffin::GetName());
+}

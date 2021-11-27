@@ -1,0 +1,81 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library Update;
+
+
+
+import Muffin, Output, Form from "Libraries/Muffin";
+import MuffinBootstrapUI as BSUI from "Libraries/MuffinBootstrap";
+import Crud from "Libraries/Muffin/Crud";
+
+import WebApplication as WA from "SystemLibraries";
+
+
+include phtml "../../templates/crud/update.phtml" as function UpdateTemplate(val variables);
+
+
+
+function UpdateMode(val form_source, val action, opt variables_source = FALSE, opt template = FALSE) {
+
+    return @(ref contexts) {
+
+        contexts.muffin.update_item = @(val item_pk) {
+
+            ::UpdateItem(item_pk, contexts);
+        };
+
+        update_url = Output::PrepareActionUrl(@{
+
+            return @contexts.muffin.update_item(WA::GetRequestData("get", "pk"));
+        });
+
+        contexts.muffin.modes.update = [
+            .form_source => form_source,
+            .action => action,
+            .template => template,
+            .variables_source => variables_source,
+            .process_list_item => @(val item, ref list_item) {
+
+                item_pk = Crud::GetPkFromItem(contexts, item);
+
+                list_item.update_url = @( Output::PreparedActionUrl(update_url, ["pk" => $item_pk]) );
+            }
+        ];
+    };
+}
+
+
+
+function UpdateItem(val item_pk, ref contexts) {
+
+    item = Crud::GetItemByPk(contexts, item_pk);
+
+    submit_action = @(val submited_form) {
+
+        @contexts.muffin.modes.update.action(item, submited_form);
+
+        return Muffin::EndDialog(TRUE);
+    };
+
+    cancel_action = @{
+
+        return Muffin::EndDialog(FALSE);
+    };
+
+    form = @contexts.muffin.modes.update.form_source(item, submit_action);
+
+    variables_source = contexts.muffin.modes.update.variables_source ?: @(val a) { return a; };
+
+    return Muffin::DialogWithSource(@{
+
+        Output::Template(
+            contexts.muffin.modes.update.template ?: ::UpdateTemplate,
+            @variables_source([
+                .item => item,
+                .form => Form::Form(form, BSUI::FormRenderer()),
+                .cancel_url => @( Output::ActionUrl(cancel_action) )
+            ])
+        );
+    });
+}

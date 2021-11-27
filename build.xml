@@ -1,0 +1,248 @@
+<?xml version="1.0"?>
+<project name="K5Z" default="compile" basedir="."
+         xmlns:ivy="antlib:org.apache.ivy.ant"
+>
+    <property file="build.properties"/>
+
+    <path id="project.path">
+        <pathelement location="${build.dir}"/>
+        <fileset dir="${jar.lib.dir}" includes="**/*.jar"/>
+        <fileset dir="${st321.lib.dir}" includes="**/*.jar"/>
+    </path>
+
+    <path id="build.lib.path">
+        <fileset dir="${build.lib.dir}" includes="*.jar"/>
+        <fileset dir="${st321.lib.dir}" includes="*.jar"/>
+        <fileset dir="${compile.lib.dir}" includes="*.jar"/>
+    </path>
+
+    <path id="compile.lib.path">
+        <fileset dir="${compile.lib.dir}" includes="*.jar"/>
+    </path>
+
+    <path id="jar.lib.path">
+        <fileset dir="${compile.lib.dir}" includes="*.jar"/>
+    </path>
+
+    <target name="make-directories">
+        <mkdir dir="${build.lib.dir}"/>
+        <mkdir dir="${resources.build.dir}"/>
+        <mkdir dir="${compile.lib.dir}"/>
+        <mkdir dir="${jar.lib.dir}"/>
+        <mkdir dir="${st321.lib.dir}"/>
+        <mkdir dir="${systemLibraries.k5z.dir}"/>
+        <mkdir dir="${k5z.antlr.dest.dir}"/>
+    </target>
+
+    <target name="init" depends="make-directories,-install-ivy,ivy-artifactproperties">
+    </target>
+
+    <target name="ivy-artifactproperties">
+        <ivy:settings file="ivysettings.xml" id="ivy.settings.local"/>
+        <ivy:artifactproperty settingsRef="ivy.settings.local" log="download" conf="build" name="forbuild.[module]"
+                              value="${build.lib.dir}/[artifact]-[revision].[ext]"/>
+        <ivy:artifactproperty settingsRef="ivy.settings.local" log="download" conf="compile" name="forcompile.[module]"
+                              value="${compile.lib.dir}/[artifact]-[revision].[ext]"/>
+        <ivy:artifactproperty settingsRef="ivy.settings.local" log="download" conf="jar" name="forjar.[module]"
+                              value="${jar.lib.dir}/[artifact]-[revision].[ext]"/>
+        <ivy:artifactproperty settingsRef="ivy.settings.local" log="download" conf="st321" name="forst321.[module]"
+                              value="${st321.lib.dir}/[artifact]-[revision].[ext]"/>
+    </target>
+
+    <target name="clean" depends="init">
+        <!-- <delete dir="${build.dir}"/> -->
+    </target>
+
+    <target name="antlr" depends="init">
+        <compile-antlr-grammar grammar="${k5z.antlr.src.dir}/Ast.g"/>
+        <compile-antlr-grammar grammar="${k5z.antlr.src.dir}/SymbolMapperParser.g"/>
+        <compile-antlr-grammar grammar="${k5z.antlr.src.dir}/CompilerParser.g"/>
+        <compile-antlr-grammar grammar="${k5z.antlr.src.dir}/VariableAccessMapperParser.g"/>
+        <compile-antlr-grammar grammar="${k5z.antlr.src.dir}/EmitterParser.g"/>
+        <compile-antlr-grammar grammar="${k5z.antlr.src.dir}/AstExportParser.g"/>
+    </target>
+
+    <target name="compile" depends="init">
+        <javac srcdir="${src.dir}" includeantruntime="true" fork="true" destdir="${build.dir}"
+               classpathref="project.path" debug="true"/>
+        <make-k5z-lib force="true" src="${systemLibraries.k5z.src.dir}/Core.k5z" dstdir="${resources.build.dir}"/>
+        <copy overwrite="true" verbose="true" file="${k5z.src.dir}/k5z-php.stg" todir="${resources.build.dir}"/>
+    </target>
+
+    <target name="bigjar" depends="init,lib,jar"/>
+
+    <target name="jar" depends="init">
+        <property name="version.num" value="0.15"/>
+        <buildnumber file="build.num"/>
+        <tstamp>
+            <format property="TODAY" pattern="yyyy-MM-dd HH:mm:ss"/>
+        </tstamp>
+        <jar destfile="${dist.dir}/k5z.jar">
+            <fileset dir="${build.dir}/"/>
+            <manifest>
+                <attribute name="Main-Class" value="lv.kristsk.k5z.Compiler"/>
+                <attribute name="Implementation-Version" value="${version.num}-b${build.number}"/>
+                <attribute name="Built-Date" value="${TODAY}"/>
+            </manifest>
+            <zipfileset src="${forjar.antlr-runtime}" includes="**/*.class"/>
+            <zipfileset src="${forjar.commons-cli}" includes="**/*.class"/>
+            <zipfileset src="${forjar.commons-lang}" includes="**/*.class"/>
+            <zipfileset src="${forjar.jgrapht-jdk1.5}" includes="**/*.class"/>
+            <zipfileset src="${forjar.log4j}" includes="**/*.class"/>
+            <zipfileset src="${forjar.stringtemplate}" includes="**/*.class"/>
+            <zipfileset src="${forst321.stringtemplate}" includes="**/*.class"/>
+            <zipfileset src="${forjar.antlr}" includes="**/*.class"/>
+            <zipfileset src="${forjar.kryo}" includes="**/*.class"/>
+        </jar>
+        <echo message="Version: ${version.num}-b${build.number}"/>
+    </target>
+
+    <target name="lib" depends="init">
+        <make-k5z-libs/>
+    </target>
+
+    <target name="lib-force" depends="init">
+        <make-k5z-libs force="true"/>
+    </target>
+
+    <macrodef name="make-k5z-libs">
+        <attribute name="force" default=""/>
+        <sequential>
+            <make-k5z-lib force="@{force}" src="${systemLibraries.k5z.src.dir}/Core.k5z"
+                          dstdir="${resources.build.dir}"/>
+            <make-k5z-lib force="@{force}" src="${systemLibraries.k5z.src.dir}/StandaloneWebApplication.k5z"
+                          dstdir="${systemLibraries.k5z.dir}"/>
+            <make-k5z-lib force="@{force}" src="${systemLibraries.k5z.src.dir}/EmbeddedWebApplication.k5z"
+                          dstdir="${systemLibraries.k5z.dir}"/>
+            <make-k5z-lib force="@{force}" src="${systemLibraries.k5z.src.dir}/WebApplication.k5z"
+                          dstdir="${systemLibraries.k5z.dir}"/>
+            <make-k5z-lib force="@{force}" src="${systemLibraries.k5z.src.dir}/Pdo.k5z"
+                          dstdir="${systemLibraries.k5z.dir}"/>
+            <make-k5z-lib force="@{force}" src="${systemLibraries.k5z.src.dir}/Xhprof.k5z"
+                          dstdir="${systemLibraries.k5z.dir}"/>
+            <make-k5z-lib-with-core force="@{force}" src="${systemLibraries.k5z.src.dir}/Buffer.k5z"
+                                    dstdir="${systemLibraries.k5z.dir}"/>
+            <make-k5z-lib-with-core force="@{force}" src="${systemLibraries.k5z.src.dir}/CurrentBuffer.k5z"
+                                    dstdir="${systemLibraries.k5z.dir}"/>
+        </sequential>
+    </macrodef>
+
+    <target name="build" depends="clean,compile,lib,jar"/>
+
+    <macrodef name="compile-antlr-grammar">
+        <attribute name="grammar"/>
+        <sequential>
+            <java classname="org.antlr.Tool" fork="true" failonerror="true">
+                <arg value="@{grammar}"/>
+                <arg value="-verbose"/>
+                <arg value="-make"/>
+                <arg value="-Xmultithreaded"/>
+                <arg value="-fo"/>
+                <arg value="${k5z.antlr.dest.dir}"/>
+                <classpath>
+                    <pathelement path="${forbuild.antlr}"/>
+                    <pathelement path="${forjar.antlr}"/>
+                    <pathelement path="${forjar.stringtemplate}"/>
+                    <pathelement path="${forjar.antlr-runtime}"/>
+                </classpath>
+            </java>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="compile-k5z">
+        <attribute name="src"/>
+        <sequential>
+            <java jar="${build.dir}/k5z.jar" fork="true">
+                <arg value="-v"/>
+                <arg value="@{src}"/>
+            </java>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="make-k5z-lib">
+        <attribute name="src"/>
+        <attribute name="dstdir"/>
+        <attribute name="force" default=""/>
+        <sequential>
+            <condition property="forceOption" value="" else="-preferSource">
+                <equals arg1="@{force}" arg2=""/>
+            </condition>
+            <java fork="true" classname="lv.kristsk.k5z.Compiler" classpathref="project.path">
+                <arg value="${forceOption}"/>
+                <arg value="-withoutCore"/>
+                <arg value="-verbose"/>
+                <arg value="@{src}"/>
+            </java>
+            <copy overwrite="true" verbose="true" file="@{src}.lib" todir="@{dstdir}"/>
+        </sequential>
+    </macrodef>
+
+    <macrodef name="make-k5z-lib-with-core">
+        <attribute name="src"/>
+        <attribute name="dstdir"/>
+        <attribute name="force" default=""/>
+        <sequential>
+            <condition property="forceOption" value="" else="-preferSource">
+                <equals arg1="@{force}" arg2=""/>
+            </condition>
+            <java fork="true" classname="lv.kristsk.k5z.Compiler" classpathref="project.path">
+                <arg value="${forceOption}"/>
+                <arg value="-libraryPath"/>
+                <arg value="@{dstdir}"/>
+                <arg value="-verbose"/>
+                <arg value="@{src}"/>
+            </java>
+            <copy overwrite="true" verbose="true" file="@{src}.lib" todir="@{dstdir}"/>
+        </sequential>
+    </macrodef>
+
+
+    <target name="clean-dot" depends="init">
+        <delete dir="misc/dot"/>
+        <mkdir dir="misc/dot"/>
+        <delete dir="misc/treedot"/>
+        <mkdir dir="misc/treedot"/>
+    </target>
+
+    <target name="unzip-lib-jars" depends="ivy-artifactproperties">
+        <unzip src="${forjar.antlr-runtime}" dest="${class.lib.dir}"/>
+        <unzip src="${forjar.commons-cli}" dest="${class.lib.dir}"/>
+        <unzip src="${forjar.commons-lang}" dest="${class.lib.dir}"/>
+        <unzip src="${forjar.jgrapht-jdk1.5}" dest="${class.lib.dir}"/>
+        <unzip src="${forjar.log4j}" dest="${class.lib.dir}"/>
+        <unzip src="${forjar.stringtemplate}" dest="${class.lib.dir}"/>
+        <unzip src="${forst321.stringtemplate}" dest="${class.lib.dir}"/>
+        <unzip src="${forjar.antlr}" dest="${class.lib.dir}"/>
+        <unzip src="${forjar.kryo}" dest="${class.lib.dir}"/>
+    </target>
+
+    <!-- ==================================================================================================== -->
+
+    <property name="ivy.install.version" value="2.5.0"/>
+    <property name="ivy.jar.file" value="${build.lib.dir}/ivy.jar"/>
+
+    <target name="-download-ivy" depends="make-directories" unless="skip.download">
+        <get src="https://repo1.maven.org/maven2/org/apache/ivy/ivy/${ivy.install.version}/ivy-${ivy.install.version}.jar"
+             dest="${ivy.jar.file}" usetimestamp="true"/>
+    </target>
+
+    <target name="-install-ivy">
+        <taskdef resource="org/apache/ivy/ant/antlib.xml" uri="antlib:org.apache.ivy.ant"
+                 classpathref="build.lib.path"/>
+        <ivy:settings file="ivysettings.xml" id="ivy.settings.local"/>
+    </target>
+
+    <target name="bootstrap" depends="-download-ivy,-install-ivy">
+
+        <delete dir="${class.lib.dir}"/>
+        <mkdir dir="${class.lib.dir}"/>
+
+        <ivy:retrieve log="download-only" pattern="${lib.dir}/[conf]/[artifact]-[revision].[ext]"
+                      settingsRef="ivy.settings.local"/>
+
+        <antcall target="unzip-lib-jars"/>
+    </target>
+
+    <!-- ==================================================================================================== -->
+
+</project>

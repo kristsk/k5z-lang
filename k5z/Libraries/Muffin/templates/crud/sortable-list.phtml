@@ -1,0 +1,11 @@
+<?php extract($variables); ?>
+
+[generic crud sorted list template]
+
+<a href="<?= $create_url ?>">Create</a>
+
+<?= $list_table ?>
+
+<?php if (isset($list_pagination)): ?>
+    <?= $list_pagination ?>
+<?php endif ?>

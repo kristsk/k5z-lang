@@ -1,0 +1,330 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+library Kitchen;
+
+
+
+import WebApplication as WA from "SystemLibraries";
+import Buffer as B from "SystemLibraries";
+
+import Exchange;
+import SomeFlapjack;
+import Machine;
+import CurrentThread;
+import SomeMachine;
+import SomeMuffin;
+import Output;
+import Flapjack;
+
+include phtml "templates/internal-error.phtml" as function InternalErrorTemplate(val variables);
+include phtml "templates/user-error.phtml" as function UserErrorTemplate(val variables);
+
+
+
+function Debug(val p1, val p2, opt suffix = "") {
+
+    MaybeDebug("muffin.kitchen" .. suffix, p1, p2);
+}
+
+
+
+function Initialize() {
+
+    SetErrorThread(::MakeErrorThread());
+
+    WA::SetResumerThread(::MakeKitchenThread());
+}
+
+
+
+function MakeKitchenThread() {
+
+    kitchen_thread_name = MakeNamedThread("kitchen-thread", @{
+
+        CurrentThread::RegisterContext("kitchen", [
+            .current_machine_name => FALSE,
+            .last_machine_name => FALSE,
+            .fancy_urls => [],
+            .muffins => [],
+            .machines => [],
+            .content_root_source => FALSE
+        ]);
+
+        CurrentThread::RegisterContext("exchange", []);
+
+        CurrentThread::DoWithContexts(@(ref contexts) {
+
+            Exchange::InitializeEmpty(contexts);
+            Exchange::ClearPersistent(contexts);
+
+            SwitchToPreviousThread();
+
+            // First time sending anything to the browser
+            ::PrepareFullResponse(contexts);
+            ::OutputResponse(contexts);
+
+            while(TRUE) {
+
+                Exchange::InitializeWithRawRequestData(contexts, WA::GetRequestData());
+
+                if(Exchange::IsFlapjackRequest(contexts)) {
+
+                    if(Exchange::ResolveFlapjackRequest(contexts)) {
+
+                        Flapjack::HandleRequest(contexts);
+                    }
+                }
+                else if(Exchange::IsReturnActionIdRequest(contexts)) {
+
+                    if(Exchange::ResolveReturnActionIdRequest(contexts)) {
+
+                        Machine::HandleReturnActionIdRequest(contexts);
+                    }
+                }
+                else if(Exchange::IsFancyUrlRequest(contexts)) {
+
+                    if(Exchange::ResolveFancyUrlRequest(contexts)) {
+
+                        Machine::HandleFancyUrlRequest(contexts);
+                    }
+                }
+
+                if(Exchange::IsBadRequest(contexts))
+                {
+                    ::HandleBadRequest(contexts);
+                }
+
+                if(Exchange::ExpectsFullResponse(contexts)) {
+
+                    if(Exchange::HaveResponseMachineName(contexts) == FALSE) {
+
+                        Exchange::SetResponseMachineName(contexts, contexts.kitchen.last_machine_name);
+                        Exchange::SetIsRefreshResponse(contexts, TRUE);
+                    }
+
+                    ::PrepareFullResponse(contexts);
+                }
+                else if(Exchange::ExpectsIncrementalResponse(contexts)){
+
+                    ::PrepareIncrementalResponse(contexts);
+                }
+                else {
+
+                    // Now what?
+                }
+
+                ::CleanupBeforeOutput(contexts);
+
+                ::OutputResponse(contexts);
+            }
+        });
+    });
+
+    SwitchToThread(kitchen_thread_name);
+
+    return kitchen_thread_name;
+}
+
+
+
+function MakeErrorThread() {
+
+    return MakeThread(@(val error) {
+
+        WA::SetResumerThread(CurrentThreadName());
+
+        while(TRUE) {
+
+            output = error.type == "internal"
+                ? ::InternalErrorTemplate(error)
+                : ::UserErrorTemplate(error);
+
+            WA::Output(output);
+        }
+    });
+}
+
+
+
+function HandleBadRequest(ref contexts) {
+
+    if(SomeMachine::IsActive(contexts.kitchen.last_machine_name)) {
+
+        Machine::HandleBadRequest(contexts);
+    }
+    else {
+
+        Error("No current machine and no last machine. What is going on out there?");
+    }
+}
+
+
+
+function PrepareFullResponse(ref contexts) {
+
+    machine_name = Exchange::GetResponseMachineName(contexts);
+
+    body_buffer = SomeMachine::OutputFullResponseToBuffer(machine_name);
+
+    contexts.exchange.response.content.body = B::GetItems(body_buffer);
+    contexts.exchange.response.content.http_code = 200;
+
+    contexts.kitchen.last_machine_name = machine_name;
+}
+
+
+
+function PrepareIncrementalResponse(ref contexts) {
+
+    muffin_name = Exchange::GetRequestMuffinName(contexts);
+
+    if(SomeMuffin::IsActive(muffin_name) == FALSE) {
+
+        response_machine_name = Exchange::GetResponseMachineName(contexts);
+
+        muffin_name = SomeMachine::GetRootMuffinName(response_machine_name);
+    }
+
+    SomeMuffin::UpdateContainer(muffin_name);
+
+    response_parts = [];
+    foreach(contexts.exchange.response.increments as increment) {
+
+        increment_output_buffer = B::SetNextForCurrentThread();
+
+        if(increment.data.content ?? FALSE) {
+
+            Output::ProcessBufferItems(increment.data.content, @(val buffer_item) {
+
+                @buffer_item(
+                    increment.context.machine,
+                    contexts,
+                    [
+                        .before => B::GetNext(),
+                        .after => B::GetNext()
+                    ]);
+            });
+
+            B::Trash(increment.data.content);
+
+            increment.data.content = B::GetItemsAsStringAndTrash(increment_output_buffer);
+        }
+
+        if(increment.data.content) {
+        
+            response_parts[] = increment.data;
+        }
+    }
+
+    response_buffer = B::GetNext();
+
+    B::AddItem(response_buffer, JsonEncode(response_parts));
+
+    contexts.exchange.response.content.body = B::GetItems(response_buffer);
+    contexts.exchange.response.content.http_code = 200;
+    contexts.exchange.response.content.headers = ["Content-Type" => "application/json+k5z-incremental"];
+
+    contexts.kitchen.last_machine_name = Exchange::GetResponseMachineName(contexts);
+}
+
+
+
+function OutputResponse(ref contexts) {
+
+    content = contexts.exchange.response.content;
+
+    UnSet(contexts.exchange.request);
+    UnSet(contexts.exchange.response);
+
+    WA::OutputArray(
+        content.body,
+        content.headers,
+        content.http_code
+    );
+}
+
+
+
+function SwitchTo() {
+
+    return SwitchToThread("kitchen-thread");
+}
+
+
+
+function CleanupBeforeOutput(ref contexts) {
+
+    foreach(contexts.kitchen.machines as machine_name => machine_state) {
+
+         if(machine_state.terminated) {
+
+            TerminateThread(machine_name);
+            UnSet(contexts.kitchen.machines[machine_name]);
+         }
+    }
+
+    foreach(contexts.kitchen.muffins as muffin_name => muffin_state) {
+
+        if(muffin_state.terminated) {
+
+            foreach(muffin_state.helper_thread_names as helper_thread_name) {
+
+                TerminateThread(helper_thread_name);
+            }
+
+            TerminateThread(muffin_name);
+            UnSet(contexts.kitchen.muffins[muffin_name]);
+        }
+    }
+}
+
+
+
+function SetContentRootSource(val content_root_source) {
+
+    CurrentThread::DoWithContexts(@(ref contexts) {
+
+        contexts.kitchen.content_root_source = content_root_source;
+    });
+}
+
+
+
+function RegisterMachine(val machine_name, opt machine_data = []) {
+
+    CurrentThread::DoWithContexts(@(ref contexts) {
+    
+        contexts.kitchen.machines[contexts.machine.name] = [
+           .terminated => FALSE
+        ];
+    });
+}
+
+
+
+function RegisterMuffin(val machine_name, val muffin_name, opt muffin_data = []) {
+
+    CurrentThread::DoWithContexts(@(ref contexts) {
+
+        contexts.kitchen.muffins[muffin_name] = [
+            .terminated => FALSE,
+            .helper_thread_names => []
+        ];
+
+        contexts.kitchen.machines[machine_name].muffins[muffin_name] = muffin_name;
+    });
+}
+
+
+
+function WithMuffinSources(val muffin_name, val closure) {
+
+    return CurrentThread::DoWithContexts(@(ref contexts) {
+
+        return @closure(
+            contexts.kitchen.muffins[muffin_name].frame_source,
+            contexts.kitchen.muffins[muffin_name].content_source
+        );
+    });
+}

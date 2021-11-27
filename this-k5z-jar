@@ -1,0 +1,2 @@
+BASEDIR=$(dirname $0)
+/usr/bin/java -jar $BASEDIR/dist/k5z.jar -libraryPath $BASEDIR/k5z $@

@@ -1,0 +1,2 @@
+BASEDIR=$(dirname $0)
+java -verbose:classes -classpath $BASEDIR/build:$BASEDIR/lib/class lv.kristsk.k5z.Compiler -libraryPath $BASEDIR/k5z $@

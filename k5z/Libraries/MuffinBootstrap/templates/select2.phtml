@@ -1,0 +1,13 @@
+<?php
+/* @var $variables */
+/* @var $data */
+/* @var $params */
+extract($variables); ?>
+<input
+        type="hidden"
+        class="form-control select2-multiple"
+        id="<?= $params['id'] ?>"
+        name="<?= $data['name'] ?>"
+        data-select2-multi-ajax data-url="<?= $data['ajax_url'] ?>"
+        data-current-data="<?= htmlentities(json_encode($data['current_data'])) ?>"
+/>
