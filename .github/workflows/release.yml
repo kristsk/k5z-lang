@@ -1,6 +1,9 @@
 name: Java CI
 
-on: [push]
+on:
+  push:
+    tags:
+      - '*'
 
 jobs:
   build:
@@ -17,3 +20,7 @@ jobs:
         run: ant -noinput -buildfile build.xml bootstrap
       - name: Build with Ant (jar)
         run: ant -noinput -buildfile build.xml jar
+      - uses: ncipollo/release-action@v1
+        with:
+          artifacts: "/home/runner/work/k5z-lang/k5z-lang/dist/k5z.jar"
+          token: ${{ secrets.GITHUB_TOKEN }}
