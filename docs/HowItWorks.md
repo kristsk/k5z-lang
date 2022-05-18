@@ -29,7 +29,7 @@ max_guess = 100
 guess_count = 0
  
 loop
-   guess = ReadNumber "Enter number from " min_guess " to "  max_guess
+   guess = ReadNumber("Enter number from " min_guess " to "  max_guess)
    guess_count = guess_count + 1
      
    if guess > max_guess or guess < min_guess then
@@ -43,14 +43,14 @@ loop
  
 until guess == secret_number
 
-ShowMessage "Number guessed in " guess_count " attempts."
+ShowMessage("Number guessed in " guess_count " attempts.")
 ```
 
 This is pretty straight-forward - a single loop with exit condition and some checks inside.
 
 Now consider how would one go about and implement this on server side, with PHP. If done ad-hoc, it would be one file,
-with one big switch and some query parameter parsing determine correct state. The control flow will be quite different
-from what is seen in pseudo-code. Tha argument a-la "oh, this should not be done in server side" for now is not
+with one big switch and some query parameter parsing determine correct state. The actual control flow will be quite different
+from what is shown in the pseudo-code above. Tha argument a-la "oh, this should not be done in server side at all" for now is not
 considered to be relevant.
 
 Now, if we go and see file [`k5z/Applications/Guess/Guess.k5z`](./k5z/Applications/Guess/Guess.k5z), and compare that to
@@ -97,12 +97,11 @@ pseudo-code. And when compiled and executed (from a web-server), it behaves exac
 
 ## So How Does It Work (A Short Answer)?
 
-In short - by determining which functions/calls will result in stopping the execution of program to do output. This
-knowledge then gets used by compiler to add, where necessary, execution context tracing - for outputting function call
-stacks.
+In short - by determining which functions and calls to them will likely result in interruption of the execution of program to do output. This
+knowledge then gets used by compiler to add, where necessary, execution context tracing, results of which get used for storing the call stacks when the program execution is interrupted. 
 
-Internally functions in K5Z can be one of two kinds - "clean" and "dirty". "Clean" functions are those where compiler is
-sure that no stopping of execution will happen, and therefore it does not do anything very special for those. Otherwise,
+Internally, compiler classifies functions in K5Z to be one of two kinds - "clean" and "dirty". "Clean" functions are those where compiler is
+sure that no interruption of execution will happen, and therefore it does not do anything very special for those. Otherwise,
 the if function is deemed "dirty", its control flow is transformed to so that it can be suspended and resumed. In our
 example above the functions `BS::Input`, `BS::Okay`, `BS:YesNo` and `WA::Output` are "dirty" and invoking them causes
 storing of execution state of the program. This state is later restored and program execution resumed. For now, to have

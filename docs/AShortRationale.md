@@ -15,10 +15,10 @@ It is my research project. Main goal of the project is to explore a different we
 However, the language itself is not hard-tied to web-world. It would be possible, for example, to do a weird CLI program
 that suspends its state between runs. No idea why anyone would want that, but it could be done.
 
-There are no practical applications using K5Z. But I did manage to get my Masters degree for it, but the paper is in
+There are no practical applications using K5Z. But I did manage to get my Master's degree for it, but the thesis is in
 Latvian and thus not that convenient for a wider public.
 
-Sadly, I do not remember exactly why the name K5Z was chosen. And at this point there is little point of changing it.
+Sadly, I do not remember exactly why the name K5Z was chosen. And at this point there is little point to change it.
 
 # Why is K5Z?
 
@@ -92,12 +92,11 @@ Now in year 2021 ANTLR v3 is old-old-old. But back then it was quite recent and 
 
 # Features of K5Z
 
-1. K5Z compiles to PHP, runs on a toaster
-2. Persists and restores the state of program
-3. Has closures, and they are nice - see section about closures and anonymous functions
-4. Has "'green' threads".
-5. Compiler does data flow analysis and warns about reads before writes.
-6. Functions can have named arguments
-7. Allows including and reuse PHP of code (some limitations apply)
-8. Checks function usage and errors on undefined functions or bad arguments
-9. A somewhat naive, but convenient concurrency model using threads is present and can be (ab)used
+1. K5Z compiles to PHP, runs on a toaster.
+2. Allows for "natural" program execution flow in server-side, shared-nothing execution model.
+3. Has closures, and they are nice - see section about closures and anonymous functions.
+4. Compiler does data flow analysis and warns about reads before writes.
+5. Functions can have named arguments.
+6. Allows including and reuse PHP of code (some limitations apply).
+7. Checks function usage and errors on undefined functions or bad arguments.
+8. A somewhat naive, but convenient concurrency model using "green" threads is present and can be (ab)used.
