@@ -1,5 +1,4 @@
-// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>.
- All rights reserved.
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
 // SPDX-License-Identifier: MIT
 
 //=============================================================================================

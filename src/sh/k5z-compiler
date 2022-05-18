@@ -1,0 +1,7 @@
+if [[ -z "$JAVA_HOME" ]]; then
+    echo "Must provide JAVA_HOME in environment" 1>&2
+    exit 1
+fi
+SCRIPT=$(stat -f "$0")
+SCRIPT_PATH=$(dirname "$SCRIPT")
+"$JAVA_HOME"/bin/java -jar "$SCRIPT_PATH"/k5z.jar -libraryPath "$SCRIPT_PATH"/lib $@
