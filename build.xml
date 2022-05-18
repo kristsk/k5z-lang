@@ -1,6 +1,9 @@
 <?xml version="1.0"?>
-<project name="K5Z" default="compile" basedir="."
+<project name="K5Z"
+         default="compile"
+         basedir="."
          xmlns:ivy="antlib:org.apache.ivy.ant"
+         xmlns:unless="ant:unless"
 >
     <property file="build.properties"/>
 
@@ -74,9 +77,14 @@
     <target name="jar" depends="init">
         <property name="version.num" value="0.15"/>
         <buildnumber file="build.num"/>
+
+        <delete dir="${dist.dir}" quiet="true"/>
+        <mkdir dir="${dist.dir}"/>
+
         <tstamp>
             <format property="TODAY" pattern="yyyy-MM-dd HH:mm:ss"/>
         </tstamp>
+
         <jar destfile="${dist.dir}/k5z.jar">
             <fileset dir="${build.dir}/"/>
             <manifest>
@@ -94,8 +102,49 @@
             <zipfileset src="${forjar.antlr}" includes="**/*.class"/>
             <zipfileset src="${forjar.kryo}" includes="**/*.class"/>
         </jar>
+
+        <copy-dir target="${systemLibraries.k5z.dist.dir}">
+            <source-filesets>
+                <fileset dir="${systemLibraries.k5z.dir}" includes="**/*.k5z.lib"/>
+            </source-filesets>
+        </copy-dir>
+
+        <copy-dir target="${libraries.k5z.dist.dir}">
+            <source-filesets>
+                <fileset dir="${libraries.k5z.dir}" includes="**/*.k5z"/>
+                <fileset dir="${libraries.k5z.dir}" includes="**/*.phtml"/>
+                <fileset dir="${libraries.k5z.dir}" includes="**/*.js"/>
+                <fileset dir="${libraries.k5z.dir}" includes="**/*.css"/>
+            </source-filesets>
+        </copy-dir>
+
+        <copy-dir target="${applications.k5z.dist.dir}">
+            <source-filesets>
+                <fileset dir="${applications.k5z.dir}" includes="**/*.k5z"/>
+                <fileset dir="${applications.k5z.dir}" includes="**/*.js"/>
+                <fileset dir="${applications.k5z.dir}" includes="**/*.phtml"/>
+                <fileset dir="${applications.k5z.dir}" includes="**/*.css"/>
+            </source-filesets>
+        </copy-dir>
+
+        <copy tofile="${dist.dir}/k5z-compiler">
+            <file name="${sh.src.dir}/k5z-compiler"/>
+        </copy>
+        <chmod file="${dist.dir}/k5z-compiler" perm="755"/>
+
         <echo message="Version: ${version.num}-b${build.number}"/>
     </target>
+
+    <macrodef name="copy-dir">
+        <attribute name="target"/>
+        <element name="source-filesets"/>
+        <sequential>
+            <mkdir dir="@{target}"/>
+            <copy todir="@{target}">
+                <source-filesets/>
+            </copy>
+        </sequential>
+    </macrodef>
 
     <target name="lib" depends="init">
         <make-k5z-libs/>
@@ -164,11 +213,11 @@
         <attribute name="dstdir"/>
         <attribute name="force" default=""/>
         <sequential>
-            <condition property="forceOption" value="" else="-preferSource">
-                <equals arg1="@{force}" arg2=""/>
+            <condition property="forceNotSet">
+                <equals arg1="@{force}" arg2="" forcestring="true"/>
             </condition>
             <java fork="true" classname="lv.kristsk.k5z.Compiler" classpathref="project.path">
-                <arg value="${forceOption}"/>
+                <arg value="-preferSource" unless:set="forceNotSet"/>
                 <arg value="-withoutCore"/>
                 <arg value="-verbose"/>
                 <arg value="@{src}"/>
@@ -182,11 +231,11 @@
         <attribute name="dstdir"/>
         <attribute name="force" default=""/>
         <sequential>
-            <condition property="forceOption" value="" else="-preferSource">
-                <equals arg1="@{force}" arg2=""/>
+            <condition property="forceNotSet">
+                <equals arg1="@{force}" arg2="" forcestring="true"/>
             </condition>
             <java fork="true" classname="lv.kristsk.k5z.Compiler" classpathref="project.path">
-                <arg value="${forceOption}"/>
+                <arg value="-preferSource" unless:set="forceNotSet"/>
                 <arg value="-libraryPath"/>
                 <arg value="@{dstdir}"/>
                 <arg value="-verbose"/>
