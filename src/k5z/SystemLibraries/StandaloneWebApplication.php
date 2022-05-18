@@ -2,6 +2,15 @@
 // Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
 // SPDX-License-Identifier: MIT
 
+if(php_sapi_name() == 'cli') {
+    $port = 8000;
+    while($port < 8100 && @fsockopen("127.0.0.1", $port, $errNo, $errString, 0.1)) {
+        $port++;
+    }
+    exec($_SERVER["_"] . " -S 127.0.0.1:" . $port . " " . $_SERVER["SCRIPT_FILENAME"]);
+    die();
+}
+
 if (isset($_REQUEST['wipe'])) {
 
     \session_start();
