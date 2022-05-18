@@ -30,7 +30,7 @@ k5z/Applications/MAG/
 k5z/Applications/**/*.k5z.lib
 k5z/Libraries/**/*.k5z.lib
 src/k5z/SystemLibraries/**/*.k5z.lib
-k5z/WebResources
+k5z/Resources
 k5z/SystemLibraries
 start-services
 this-phantm
