@@ -9,7 +9,7 @@ return array(
     //'core.debug.filename' => TRUE,
     'core.time_limit' => 1,
     'core.recompile.enabled' => TRUE,
-    'core.recompile.command' => '/Users/kristsk/Projects/GEN5/k5z/this-k5z',
+    'core.recompile.command' => '/Users/kristsk/Projects/GEN5/k5z-2021/dist/k5z-compiler',
     //'xhprof.enabled' => TRUE,
     //'xhprof.path' => '/Users/kristsk/Projects/GEN5/Source/php5-xhprof',
     'web_application.autostart' => TRUE

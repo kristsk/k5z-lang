@@ -1,21 +1,18 @@
 // Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
 // SPDX-License-Identifier: MIT
 
-
-// This file contains a simple ilustration of most baisc principles of K5Z.
+// This file contains a simple illustration of K5Z.
 // To compile this file run from root of the repo:
 //      ./this-k5z k5z/Applications/Guess/Guess.k5z
 // The compiler will produce file "k5z/Applications/Guess/Guess.k5z.php", which, given that
 // PHP 7.* (or newer) is present in your system, can be executed by executing this command
 // from root of the repo:
 //      php -S 127.0.0.1 8080 k5z/Applications/Guess/Guess.k5z.php
-// and then opening broser to http://127.0.0.1:8080
+// and then opening browser to http://127.0.0.1:8080
 
-// Following comments try to describe some of the basic points of a simple K5Z program
-
-// This line declares type of this unit-file to be "program". Name (in this case "Guess") must match
-// the file (Guess.k5z). Compiling "program" unit-file makes the compiler to add the K5Z core
-// library and combine code from all the included libraries to produce final "executable" file.
+// This line declares type of this unit-file to be "program". The name (in this case "Guess") must match
+// the file (Guess.k5z). Compiling "program" unit-file makes the compiler to automatically import Core
+// library and to combine code from all the included libraries to produce final "executable" file.
 program Guess;
 
 
