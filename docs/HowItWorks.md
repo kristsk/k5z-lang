@@ -53,7 +53,7 @@ with one big switch and some query parameter parsing determine correct state. Th
 from what is shown in the pseudo-code above. Tha argument a-la "oh, this should not be done in server side at all" for now is not
 considered to be relevant.
 
-Now, if we go and see file [`k5z/Applications/Guess/Guess.k5z`](./k5z/Applications/Guess/Guess.k5z), and compare that to
+Now, if we go and see file [`k5z/Applications/Guess/Guess.k5z`](../k5z/Applications/Guess/Guess.k5z), and compare that to
 how that would be done in PHP, and how similar it is to the pseudo-code above:
 
     ... 
