@@ -1,0 +1,145 @@
+// Copyright (c) 2021 Krists Krigers <krists dot krigers at gmail dot com>. All rights reserved.
+// SPDX-License-Identifier: MIT
+
+program Calculator;
+
+
+
+import StandaloneWebApplication, WebApplication as WS from "SystemLibraries";
+
+import MuffinBootstrapUI as BSUI from "Libraries/MuffinBootstrap";
+
+import CurrentMuffin, SomeMuffin, Output from "Libraries/Muffin";
+import Kitchen, CurrentMachine, SomeMachine from "Libraries/Muffin";
+
+
+include phtml "templates/root.phtml" as function MyRootTemplate(val variables);
+include phtml "templates/frame.phtml" as function CalculatorFrameTemplate(val variables);
+include phtml "templates/calculator.phtml" as function CalculatorTemplate(val variables);
+
+include phtml "templates/calculator.css" as function CalculatorCss();
+
+
+function Main() {
+
+    Kitchen::SetContentRootSource(::MyRootSource);
+
+    SomeMachine::MakeAndRun(@{
+        CurrentMachine::SetRootMuffin(
+            ::MakeCalculator("YAY!")
+        );
+    });
+}
+
+function MyRootSource(val mode, val content_source, ref contexts) {
+
+    BSUI::OutputResources();
+
+    Output::Template(::MyRootTemplate, [
+        .content => @( @content_source(mode) ),
+        .css_links => @( Output::CssLinks() ),
+        .css => @( Output::Css() ),
+        .javascript_links => @( Output::JavaScriptLinks() ),
+        .javascript => @( Output::JavaScript() ),
+        .dev_tools => @( Output::DevTools(with_inline_stats: TRUE, with_inline_debug: TRUE) )
+    ]);
+}
+
+
+function MakeCalculator(val title) {
+
+    return SomeMuffin::Make(@(ref contexts){
+
+        register_x = 0;
+        register_y = 0;
+        register_x_volatile = TRUE;
+        pending_op = FALSE;
+
+        digit_action = @{
+
+            number = WS::GetRequestData("get", "d");
+
+            if(register_x_volatile == FALSE)
+            {
+                register_x = register_x .. number;
+            }
+            else
+            {
+                register_x = number;
+                register_x_volatile = FALSE;
+            }
+        };
+
+        ops = [
+            .add => @(val x, val y ){ return IntVal(y) + IntVal(x); },
+            .sub => @(val x, val y ){ return IntVal(y) - IntVal(x); },
+            .mul => @(val x, val y ){ return IntVal(y) * IntVal(x); },
+            .div => @(val x, val y) {
+
+                if(IntVal(x) == 0)
+                {
+                    BSUI::OkDialog("You can not divide with zero!");
+                    register_x_volatile = TRUE;
+                    return "ERROR";
+                }
+                else
+                {
+                    return IntVal(y) / IntVal(x);
+                }
+            }
+        ];
+
+        op_action = @{
+
+            pending_op = ops[WS::GetRequestData("get", "o")];
+
+            register_y = register_x;
+            register_x_volatile = TRUE;
+        };
+
+        controls = [
+            .equal => @{
+
+                  tmp = register_x;
+                  register_x = @pending_op(register_x, register_y);
+                  register_y = tmp;
+                  register_x_volatile = TRUE;
+            },
+            .clear => @{
+
+                register_x = 0;
+                register_y = 0;
+                register_x_volatile = TRUE;
+            }
+        ];
+
+        control_action = @{
+
+            @controls[WS::GetRequestData("get", "c")]();
+        };
+
+        CurrentMuffin::SetContentSource(@(val mode){
+
+            variables = [
+                .register_x => register_x == "" ? "0" : register_x,
+                .digit_url => @( Output::ActionUrl(digit_action) ),
+                .op_url => @( Output::ActionUrl(op_action) ),
+                .control_url => @( Output::ActionUrl(control_action) )
+            ];
+
+            Output::Template(::CalculatorTemplate, variables);
+        });
+
+        CurrentMuffin::SetFrameSource(@(val mode, val output_source) {
+
+            Output::AddCssOnce("calculator.css", ::CalculatorCss);
+
+             Output::Template(::CalculatorFrameTemplate, [
+                .muffin_name => contexts.muffin.name,
+                .title => title,
+                .mode => mode,
+                .content => @( @output_source(mode) )
+             ]);
+        });
+    });
+}

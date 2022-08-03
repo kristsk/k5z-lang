@@ -1,0 +1,81 @@
+<?php
+/* @var $variables */
+/* @var $register_x */
+/* @var $digit_url */
+/* @var $op_url */
+/* @var $control_url */
+/* @var $targets */
+extract($variables); ?>
+<div class="calculator">
+
+    <div class="display"><?= $register_x ?></div>
+
+    <div class="buttons">
+
+        <div class="digits">
+            <?php foreach (range(0, 9) as $digit): ?>
+                <button
+                        type="button"
+                        class="btn btn-outline-success"
+                        data-muffin-action-button
+                        data-incremental
+                        data-url="<?= $digit_url ?>&d=<?= $digit ?>">
+                    <?= $digit ?>
+                </button>
+            <?php endforeach ?>
+        </div>
+
+        <div class="operations">
+            <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    data-muffin-action-button
+                    data-incremental
+                    data-url="<?= $op_url ?>&o=add">+
+            </button>
+
+            <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    data-muffin-action-button
+                    data-incremental
+                    data-url="<?= $op_url ?>&o=sub">-
+            </button>
+
+            <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    data-muffin-action-button
+                    data-incremental
+                    data-url="<?= $op_url ?>&o=mul">*
+            </button>
+
+            <button
+                    type="button"
+                    class="btn btn-outline-primary"
+                    data-muffin-action-button
+                    data-incremental
+                    data-url="<?= $op_url ?>&o=div">/
+            </button>
+        </div>
+
+        <div class="control">
+            <button
+                    type="button"
+                    class="btn btn-outline-danger"
+                    data-muffin-action-button
+                    data-incremental
+                    data-url="<?= $control_url ?>&c=equal">=
+            </button>
+
+            <button
+                    type="button"
+                    class="btn btn-outline-danger"
+                    data-muffin-action-button
+                    data-incremental
+                    data-url="<?= $control_url ?>&c=clear">C
+            </button>
+       </div>
+    </div>
+
+</div>

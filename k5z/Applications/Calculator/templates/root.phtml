@@ -1,0 +1,39 @@
+<?php
+/* @var $variables */
+/* @var $css_links */
+/* @var $css */
+/* @var $content */
+/* @var $dev_tools */
+/* @var $javascript_links */
+/* @var $javascript */
+extract($variables); ?><!DOCTYPE html>
+<html lang="en">
+<head>
+
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+    <title></title>
+
+    <?= $css_links ?>
+    <?= $css ?>
+</head>
+<body>
+
+<div class="container">
+    <?= $content ?>
+</div>
+
+<?php if ($dev_tools): ?>
+    <div class="container">
+        <div class="row border-top">
+            <?= $dev_tools ?>
+        </div>
+    </div>
+<?php endif ?>
+
+<?= $javascript_links ?>
+<?= $javascript ?>
+
+</body>
+</html>
