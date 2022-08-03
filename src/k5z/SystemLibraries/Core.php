@@ -1096,7 +1096,11 @@ function ___Recompile() {
     $exit_code = 0;
     $recompile_command = Core_GetConfigurationItem('core.recompile.command') . ' ' . (\substr(__FILE__, 0, -4));
     $start = \microtime(TRUE);
+    $current_dir = getcwd();
+    chdir(dirname(__FILE__));
     exec($recompile_command, $output, $exit_code);
+    chdir($current_dir);
+
     $end = \microtime(TRUE);
 
     $compileTime = $end - $start;
