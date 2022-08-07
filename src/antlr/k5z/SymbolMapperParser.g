@@ -147,7 +147,7 @@ library
 	: ^(LIBRARY
 			PROGRAM?
 
-			id=FUNCTION_ID { library.importAliasToDefinitionMap.put($id.text, library.new ImportDefinition($id.text, "")); }
+			id=FUNCTION_ID { library.importAliasToDefinitionMap.put($id.text, new Library.ImportDefinition($id.text, "")); }
 
 			library_imports
 
