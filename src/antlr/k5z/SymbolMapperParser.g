@@ -212,7 +212,7 @@ library_include_function_declaration
 	@after{
 		//libraryDeclaration.name = $name.text;
 
-		library.logger.debug("library_include_function_declaration: " + $name.text);
+		Library.logger.debug("library_include_function_declaration: " + $name.text);
 
 		libraryDeclaration.byRef = $ref.text != null;
 
@@ -267,7 +267,7 @@ library_import
 							errors.add(error);
 						}
 
-						//library.logger.info("IAM: " + $alias.text + " => " + $id.text);
+						//Library.logger.info("IAM: " + $alias.text + " => " + $id.text);
 
 						library.addImportDefinition($id.text, $path.text, $alias.text);
 					}
@@ -287,7 +287,7 @@ function_declaration
 				Declaration functionDeclaration = new Declaration();
 
 				functionDeclaration.name = $id.text;
-				//library.logger.info("ZZZ: " + $id.text + ":: " + $ref.text);
+				//Library.logger.info("ZZZ: " + $id.text + ":: " + $ref.text);
 				functionDeclaration.byRef = $ref.text != null;
 				functionDeclaration.library = library;
 				functionDeclaration.line = $id.getLine();
@@ -357,7 +357,7 @@ parameter
 		
         Library.logger.debug("SYMBOL MAPPER DECL PARAM: " + declaration.name + " -> " + parameter);
         if($e.tree != null) {
-            library.logger.debug("SYMBOL MAPPER DECL EXPRESSION: " + $e.tree);
+            Library.logger.debug("SYMBOL MAPPER DECL EXPRESSION: " + $e.tree);
         }
 	}
 	: ^((v=VAL|r=REF|o=OPT) id=VARIABLE_ID e=expression?)

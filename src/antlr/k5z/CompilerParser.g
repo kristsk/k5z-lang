@@ -795,7 +795,7 @@ call
 
 				$call::callee = lv.kristsk.k5z.Compiler.knownDeclarations.get(calleeDeclarationIdentity);
 
-				library.logger.debug("K5Z CALL IN " + library.name + "::"+ $body::declaration.name + ", CALLEE IDENTITY: " + calleeDeclarationIdentity + ", MODE: " + $call::callee.getMode());
+				Library.logger.debug("K5Z CALL IN " + library.name + "::"+ $body::declaration.name + ", CALLEE IDENTITY: " + calleeDeclarationIdentity + ", MODE: " + $call::callee.getMode());
 
 				if($call::callee.getMode() == Declaration.Mode.DIRTY) {
 
@@ -813,7 +813,7 @@ call
 						calleeIdentity.callId = thisCallId;
 					}
 
-					//library.logger.debug("K5Z CALL - PUSH TO PENDING NODES: " + $call::pendingDCall);
+					//Library.logger.debug("K5Z CALL - PUSH TO PENDING NODES: " + $call::pendingDCall);
 
 					$body::pendingNodes.push($call::pendingDCall);
 				}

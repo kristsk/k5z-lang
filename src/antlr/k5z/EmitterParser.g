@@ -119,7 +119,7 @@ library
 function_declaration
 	@init {
 		String declarationResult = "";
-		library.logger.debug("QQQ2 FUNCTION DECL");
+		Library.logger.debug("QQQ2 FUNCTION DECL");
 	}
 	@after {
 	    declarationOutputs.add(declarationResult);
@@ -165,7 +165,7 @@ parameter
 			
 			Declaration.Parameter parameter = declaration.parameterMap.get($id.text);
 			parameter.optionalDefaultValue = $e.st.toString();
-	        library.logger.debug("QQQ2: " + declaration.name + ":" + parameter.toString() + " >> " + parameter.optionalDefaultValue);
+	        Library.logger.debug("QQQ2: " + declaration.name + ":" + parameter.toString() + " >> " + parameter.optionalDefaultValue);
 		}
 		
 		if(declaration.getMode().equals(Declaration.Mode.CLEAN)) {
@@ -709,7 +709,7 @@ ccall
 	@after {
 		Declaration callee = $fid.declaration;
 		
-		//library.logger.info("ZZZ2: " + callee.getPhpName() + ":: " + callee.byRef);
+		//Library.logger.info("ZZZ2: " + callee.getPhpName() + ":: " + callee.byRef);
 
 		if($nargs != null) {
 
@@ -829,7 +829,7 @@ dcall
 							));
 						}
 
-					    library.logger.debug("DCALL ARG HM 1: " + hm);
+					    Library.logger.debug("DCALL ARG HM 1: " + hm);
 
 						Integer argumentCounter = 0;
 					}
@@ -849,10 +849,10 @@ dcall
 							argumentArrayElements.add(hm.get(parameter.number));
 						}
 
-					    library.logger.debug("DCALL ARG HM 2: " + hm);
-					    library.logger.debug("DCALL ARG CALLEE PARAMETERS: " + callee.parameters);
-						library.logger.debug("DCALL ARG ARGUENT COUNTER: " + argumentCounter);
-					    library.logger.debug("DCALL ARG ARGUMENT ARRAY: " + argumentArrayElements);
+					    Library.logger.debug("DCALL ARG HM 2: " + hm);
+					    Library.logger.debug("DCALL ARG CALLEE PARAMETERS: " + callee.parameters);
+						Library.logger.debug("DCALL ARG ARGUENT COUNTER: " + argumentCounter);
+					    Library.logger.debug("DCALL ARG ARGUMENT ARRAY: " + argumentArrayElements);
 					}
 				)
 				|
@@ -1031,11 +1031,11 @@ closure_declaration
 			ArrayList<StringTemplate> initialFrameArrayElements = new ArrayList<StringTemplate>();
 			ArrayList<StringTemplate> initialDummyFrameArrayElements = new ArrayList<StringTemplate>();
 
-			library.logger.debug("DECIDING CLOSURE FRAME FOR " + closureDeclaration.getPhpName());
+			Library.logger.debug("DECIDING CLOSURE FRAME FOR " + closureDeclaration.getPhpName());
 				
 		 	for(Variable variable: closureDeclaration.variables.values()) {
 			
-				library.logger.debug("VARIABLE " + variable.getId() + " (" + variable.name + "): " +
+				Library.logger.debug("VARIABLE " + variable.getId() + " (" + variable.name + "): " +
 					" " + (variable.temporary ? "IS TEMPORARY; " : "") +
 				 	"PARENT: " + variable.getParent().declaration.getPhpName() + "/" + variable.getParent().getId());
 
