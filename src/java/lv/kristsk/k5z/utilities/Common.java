@@ -4,7 +4,6 @@
 package lv.kristsk.k5z.utilities;
 
 import com.esotericsoftware.kryo.Kryo;
-import com.esotericsoftware.shaded.org.objenesis.strategy.StdInstantiatorStrategy;
 import lv.kristsk.k5z.Compiler;
 import lv.kristsk.k5z.*;
 import org.antlr.stringtemplate.StringTemplateGroup;
@@ -12,6 +11,7 @@ import org.apache.log4j.ConsoleAppender;
 import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
+import org.objenesis.strategy.StdInstantiatorStrategy;
 
 import java.io.*;
 
@@ -27,6 +27,10 @@ public class Common {
         kryo = new Kryo();
 
         kryo.setInstantiatorStrategy(new StdInstantiatorStrategy());
+
+        kryo.register(java.util.HashMap.class);
+        kryo.register(java.util.ArrayList.class);
+        kryo.register(java.util.LinkedHashSet.class);
 
         kryo.register(Library.class);
         kryo.register(Library.Include.class);
@@ -66,7 +70,7 @@ public class Common {
 
     public static String getOrdinal(Integer i) {
 
-        Integer test = i % 100;
+        int test = i % 100;
 
         if (test > 3 && test < 21) {
             return (i + "th");
@@ -135,7 +139,7 @@ public class Common {
         StringBuilder fileData = new StringBuilder();
         BufferedReader reader = new BufferedReader(new FileReader(filename));
         char[] buf = new char[1024];
-        int numRead = 0;
+        int numRead;
 
         while ((numRead = reader.read(buf)) != -1) {
             fileData.append(buf, 0, numRead);

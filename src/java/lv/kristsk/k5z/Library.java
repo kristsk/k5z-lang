@@ -34,7 +34,7 @@ public class Library implements Serializable {
         PHP, K5Z
     }
 
-    public class ImportDefinition implements Serializable {
+    public static class ImportDefinition implements Serializable {
 
         public String name;
         public String path;
@@ -81,9 +81,9 @@ public class Library implements Serializable {
 
     public static class ImportLoadException extends GenericCompilerException {
 
-        Library library = null;
-        Library importedLibrary = null;
-        ImportDefinition importDefinition = null;
+        Library library;
+        Library importedLibrary;
+        ImportDefinition importDefinition;
 
         public ImportLoadException(Library library, Library importedLibrary, ImportDefinition importDefinition, String message) {
 
@@ -103,8 +103,8 @@ public class Library implements Serializable {
 
     abstract public static class ImportLibraryClashException extends GenericCompilerException {
 
-        Library library1 = null;
-        Library library2 = null;
+        Library library1;
+        Library library2;
 
         public ImportLibraryClashException(Library library1, Library library2) {
 
@@ -185,9 +185,9 @@ public class Library implements Serializable {
                 this.modificationNanoTime = file.lastModified();
 
                 Library.logger.debug("Include file " + this.relativeFilename
-                                     + " hasOpeningTag: " + this.hasOpeningTag + ", "
-                                     + " hasClosingTag: " + this.hasClosingTag + ", "
-                                     + " modificationNanoTime: " + this.modificationNanoTime
+                    + " hasOpeningTag: " + this.hasOpeningTag + ", "
+                    + " hasClosingTag: " + this.hasClosingTag + ", "
+                    + " modificationNanoTime: " + this.modificationNanoTime
                 );
 
             }
@@ -262,7 +262,7 @@ public class Library implements Serializable {
         }
     }
 
-    transient public static Logger logger;
+    public static Logger logger;
 
     public HashMap<String, Declaration> declarations;
     public HashMap<String, ImportDefinition> importNameToDefinitionMap;
@@ -403,24 +403,24 @@ public class Library implements Serializable {
 
         if (
             compiledFile.exists() // if compiled file exists ...
-            &&
-            (
+                &&
                 (
-                    sourceFile.exists() // ... and source file also exists
-                    &&
-                    sourceFile.lastModified() < compiledFile.lastModified() // ... and compiled file is more recent
+                    (
+                        sourceFile.exists() // ... and source file also exists
+                            &&
+                            sourceFile.lastModified() < compiledFile.lastModified() // ... and compiled file is more recent
+                    )
+                        ||
+                        !sourceFile.exists() // ... or source file does not exist
                 )
-                ||
-                !sourceFile.exists() // ... or source file does not exist
-            )
-            &&
-            (
+                &&
                 (
-                    !loadStrategy.equals(Compiler.LibraryLoadStrategy.PREFER_SOURCE) // ... and we are not forcing compile from source
-                    ||
-                    !sourceFile.exists() // ... or source file does not exist
+                    (
+                        !loadStrategy.equals(Compiler.LibraryLoadStrategy.PREFER_SOURCE) // ... and we are not forcing compile from source
+                            ||
+                            !sourceFile.exists() // ... or source file does not exist
+                    )
                 )
-            )
         ) {
             // ... then try to load compiled file
             try {
@@ -771,7 +771,7 @@ public class Library implements Serializable {
                         a.append("<?php\n");
                     }
 
-                    this.compileResult = a.toString() + this.compileResult;
+                    this.compileResult = a + this.compileResult;
                 }
             }
 
@@ -1077,9 +1077,9 @@ public class Library implements Serializable {
                             importedLibrary,
                             importDefinition,
                             "Compiled library " + this.getLongName() + " " +
-                            "requires older version of library " +
-                            importedLibrary.getLongName() + " than we have now. " +
-                            "It is used in: " + org.apache.commons.lang.StringUtils.join(importingLibraryNames, ",")
+                                "requires older version of library " +
+                                importedLibrary.getLongName() + " than we have now. " +
+                                "It is used in: " + org.apache.commons.lang.StringUtils.join(importingLibraryNames, ",")
                         );
                     }
                     else if (importDefinition.compileNanoTime > importedLibrary.compileNanoTime) {
@@ -1099,9 +1099,9 @@ public class Library implements Serializable {
                             importedLibrary,
                             importDefinition,
                             "Compiled library " + this.getLongName() + " " +
-                            "requires more recent version of library " +
-                            importedLibrary.getLongName() + " than we have now. " +
-                            "It is used in: " + org.apache.commons.lang.StringUtils.join(importingLibraryNames, ",")
+                                "requires more recent version of library " +
+                                importedLibrary.getLongName() + " than we have now. " +
+                                "It is used in: " + org.apache.commons.lang.StringUtils.join(importingLibraryNames, ",")
                         );
                     }
                 }
@@ -1124,8 +1124,8 @@ public class Library implements Serializable {
 
                 if (
                     state.equals(Library.State.COMPILED)
-                    &&
-                    !importedLibrary.compileNanoTime.equals(importDefinition.compileNanoTime)
+                        &&
+                        !importedLibrary.compileNanoTime.equals(importDefinition.compileNanoTime)
                 ) {
 
                     logger.debug("+++ LOADED LIBRARY COMPILE NANO TIME NOT SAME AS IN IMPORT DEFINITION");
@@ -1137,8 +1137,8 @@ public class Library implements Serializable {
                         importedLibrary,
                         importDefinition,
                         "In library " + this.getLongName() + " " +
-                        "compile times of an import definition and library found for it " +
-                        importedLibrary.getLongName() + " do not match"
+                            "compile times of an import definition and library found for it " +
+                            importedLibrary.getLongName() + " do not match"
                     );
                 }
             }
@@ -1162,14 +1162,14 @@ public class Library implements Serializable {
         //noinspection SpellCheckingInspection
         DOTTreeGenerator._treeST = new StringTemplate(
             "digraph {\n\n"
-            + "\tordering=out;\n"
-            + "\tranksep=.4;\n"
-            + "\tbgcolor=\"white\"; node [shape=box, fixedsize=false, fontsize=12, fontname=\"Helvetica-bold\", fontcolor=\"blue\"\n"
-            + "\t\twidth=.25, height=.25, color=\"black\", fillcolor=\"white\", style=\"filled, solid\"];\n"
-            + "\tedge [arrowsize=.5, color=\"black\", style=\"bold\"]\n\n"
-            + "  $nodes$\n"
-            + "  $edges$\n"
-            + "}\n");
+                + "\tordering=out;\n"
+                + "\tranksep=.4;\n"
+                + "\tbgcolor=\"white\"; node [shape=box, fixedsize=false, fontsize=12, fontname=\"Helvetica-bold\", fontcolor=\"blue\"\n"
+                + "\t\twidth=.25, height=.25, color=\"black\", fillcolor=\"white\", style=\"filled, solid\"];\n"
+                + "\tedge [arrowsize=.5, color=\"black\", style=\"bold\"]\n\n"
+                + "  $nodes$\n"
+                + "  $edges$\n"
+                + "}\n");
 
         StringTemplate st = gen.toDOT(library_ast_tree);
         try {
@@ -1212,7 +1212,7 @@ public class Library implements Serializable {
 
             AstExportParser.library_return libraryReturn = exporter.library();
 
-            logger.info("=============" + libraryReturn.toString());
+            logger.info("=============" + libraryReturn);
 
         }
         catch (RecognitionException e) {

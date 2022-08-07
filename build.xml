@@ -67,7 +67,9 @@
 
     <target name="compile" depends="init">
         <javac srcdir="${src.dir}" includeantruntime="true" fork="true" destdir="${build.dir}"
-               classpathref="project.path" debug="true"/>
+               classpathref="project.path" debug="true">
+            <compilerarg line="-Xlint:-deprecation"/>
+        </javac>
         <make-k5z-lib force="true" src="${systemLibraries.k5z.src.dir}/Core.k5z" dstdir="${resources.build.dir}"/>
         <copy overwrite="true" verbose="true" file="${k5z.src.dir}/k5z-php.stg" todir="${resources.build.dir}"/>
     </target>
@@ -217,6 +219,7 @@
                 <equals arg1="@{force}" arg2="" forcestring="true"/>
             </condition>
             <java fork="true" classname="lv.kristsk.k5z.Compiler" classpathref="project.path">
+                <jvmarg value="--illegal-access=deny"/>
                 <arg value="-preferSource" unless:set="forceNotSet"/>
                 <arg value="-withoutCore"/>
                 <arg value="-verbose"/>
@@ -235,6 +238,7 @@
                 <equals arg1="@{force}" arg2="" forcestring="true"/>
             </condition>
             <java fork="true" classname="lv.kristsk.k5z.Compiler" classpathref="project.path">
+                <jvmarg value="--illegal-access=deny"/>
                 <arg value="-preferSource" unless:set="forceNotSet"/>
                 <arg value="-libraryPath"/>
                 <arg value="@{dstdir}"/>
@@ -263,6 +267,7 @@
         <unzip src="${forst321.stringtemplate}" dest="${class.lib.dir}"/>
         <unzip src="${forjar.antlr}" dest="${class.lib.dir}"/>
         <unzip src="${forjar.kryo}" dest="${class.lib.dir}"/>
+        <unzip src="${forjar.objenesis}" dest="${class.lib.dir}"/>
     </target>
 
     <!-- ==================================================================================================== -->

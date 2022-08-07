@@ -282,7 +282,7 @@ statement
 			jump_var=VARIABLE_ID
 			{
 				$statement::jumpVariable = $body::declaration.getVariable("DFOR_JUMP_" + $jump_var.text);
-				$statement::jumpVariable.setId(new Integer($jump_var.text));
+				$statement::jumpVariable.setId(Integer.valueOf($jump_var.text));
 			}
 
 			^(DBLOCK statement*)
@@ -374,7 +374,7 @@ statement
 			jump_var=VARIABLE_ID
 			{
 				$statement::jumpVariable = $body::declaration.getVariable("DFOREACH_JUMP_" + $jump_var.text);
-				$statement::jumpVariable.setId(new Integer($jump_var.text));
+				$statement::jumpVariable.setId(Integer.valueOf($jump_var.text));
 			}
 
 			(var[Variable.AccessMode.READ]|array[Variable.AccessMode.READ]|call|array_declaration|closure_invocation)
@@ -457,7 +457,7 @@ statement
 			jump_var=VARIABLE_ID
 			{
 				$statement::jumpVariable = $body::declaration.getVariable("DWHILE_JUMP_" + $jump_var.text);
-				$statement::jumpVariable.setId(new Integer($jump_var.text));
+				$statement::jumpVariable.setId(Integer.valueOf($jump_var.text));
 
 				//Library.logger.warn("DWHILESTEST"); NDC.push(" ");
 				CfgVertex whileCheck = new CfgVertex("DWHILE_CHECK");

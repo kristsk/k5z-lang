@@ -11,7 +11,8 @@
 		<dependency org="commons-lang" conf="compile,jar->default" name="commons-lang" rev="2.4"/>
 		<dependency org="commons-cli" conf="compile,jar->default" name="commons-cli" rev="1.2"/>
 
-		<dependency org="com.esotericsoftware.kryo" conf="compile,jar->default" name="kryo" rev="2.22"/>
+		<dependency org="com.esotericsoftware" conf="compile,jar->default" name="kryo" rev="5.3.0"/>
+		<dependency org="org.objenesis" conf="compile,jar->default" name="objenesis" rev="3.2"/>
 
 		<dependency org="org.antlr" conf="st321->default" name="stringtemplate" rev="3.2.1" transitive="false"/>
 		<dependency org="org.antlr" conf="build->default" name="antlr" rev="3.4" transitive="false"/>
